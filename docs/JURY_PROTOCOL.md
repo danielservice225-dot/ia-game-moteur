@@ -38,7 +38,8 @@ Repartir d'un lancement neuf du jeu pour chaque répétition.
 - Taille du CSV matériel :
 - État et capteurs avant/après panne :
 - Réponse du modèle nominal / en panne :
-- Temps de réponse ML :
+- Temps de réponse ML (ms) :
+- Temps CPU et mémoire RSS pendant l'entraînement et les prédictions :
 - Résultat maintenance :
 - Incidents ou messages d'erreur :
 
