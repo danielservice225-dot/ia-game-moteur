@@ -6,17 +6,11 @@ const IndustrialSimulation = preload("res://scripts/industrial_simulation.gd")
 const GpuAdaptiveManager = preload("res://scripts/gpu_adaptive_manager.gd")
 
 const FLOOR_SIZE := Vector3(30.0, 0.5, 24.0)
-const PLAYER_SPEED := 5.0
-const MOUSE_SENSITIVITY := 0.0022
 
 var player: CharacterBody3D
 var camera: Camera3D
-var camera_pitch := 0.0
 var industrial_life: Node
 var simulation: Variant
-var status_label: Label
-var result_label: Label
-var objective_label: Label
 var machines: Array[Dictionary] = []
 var selected_machine := -1
 var prediction_text := "Approchez-vous d'une machine et appuyez sur E."
@@ -379,21 +373,7 @@ func _physics_process(delta: float) -> void:
         machines[i]["state"] = snapshot["state"]
         if previous_running != bool(snapshot["running"]):
             industrial_life.set_machine_running(i, bool(snapshot["running"]))
-
-func _refresh_machine_selection() -> void:
-    selected_machine = -1
-    var closest_distance := 3.8
-    for i in range(machines.size()):
-        var machine_position: Vector3 = machines[i]["position"]
-        var distance := player.global_position.distance_to(machine_position + Vector3(0, 1.0, 0))
-        if distance < closest_distance:
-            closest_distance = distance
-            selected_machine = i
-    if objective_label:
-        if selected_machine >= 0:
-            objective_label.text = "ÉQUIPEMENT PROCHE : %s (%s) — appuyez sur E pour lancer le diagnostic." % [machines[selected_machine]["name"], machines[selected_machine]["code"]]
-        else:
-            objective_label.text = "OBJECTIF : approchez-vous d'une machine pour l'inspecter."
+    _update_hud()
 
 func _toggle_selected_machine() -> void:
     if selected_machine < 0:
