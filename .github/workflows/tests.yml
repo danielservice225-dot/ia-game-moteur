@@ -52,7 +52,13 @@ jobs:
           version: 4.4.1
           use-dotnet: false
       - name: Parse project and GDScript resources
-        run: godot --headless --editor --path godot_game --quit
+        run: |
+          set -o pipefail
+          godot --headless --editor --path godot_game --quit 2>&1 | tee /tmp/godot-parse.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed to create an autoload" /tmp/godot-parse.log; then
+            echo "GDScript parse errors detected."
+            exit 1
+          fi
       - name: Run industrial simulation tests
         run: godot --headless --path godot_game --script res://tests/industrial_simulation_test.gd
       - name: Run GPU adaptation tests
