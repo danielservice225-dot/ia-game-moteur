@@ -22,14 +22,14 @@ func _ready() -> void:
     gpu_vendor = RenderingServer.get_video_adapter_vendor()
     renderer_name = RenderingServer.get_current_rendering_method()
     _choose_initial_profile()
-    _open_telemetry()
-    _apply_initial_profile()
 
 func configure(lights: Array) -> void:
     adaptive_lights.clear()
     for item in lights:
         if item is Light3D:
             adaptive_lights.append(item)
+    _apply_initial_profile()
+    _open_telemetry()
 
 func _process(delta: float) -> void:
     elapsed += delta
