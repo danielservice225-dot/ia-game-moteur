@@ -52,7 +52,7 @@ func _run() -> void:
 
     var target_select: OptionButton = panel.get("target_select")
     var target_index := -1
-    for index in range(target_select.item_count):
+    for index in range(target_select.get_item_count()):
         if target_select.get_item_text(index) == "Machine failure":
             target_index = index
             break
