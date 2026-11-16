@@ -276,6 +276,7 @@ func _on_http_completed(result: int, response_code: int, _headers: PackedStringA
         export_button.disabled = last_report_id.is_empty()
         lines.append("Rapport : " + last_report_id)
         lines.append("RAM après entraînement : %.1f Mo" % float(parsed.get("resources", {}).get("rss_after_mb", 0.0)))
+        lines.append("Temps CPU consommé : %.3f s" % float(parsed.get("resources", {}).get("cpu_seconds_delta", 0.0)))
         lines.append("Latence de test : %.4f ms/ligne" % float(parsed.get("prediction_latency_ms_per_row", 0.0)))
         _set_status("ENTRAÎNEMENT TERMINÉ — %s\nTrain : %s | Test : %s\n%s\nVariables : %s" % [
             str(parsed.get("task", "ML")),
