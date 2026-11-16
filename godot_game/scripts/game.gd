@@ -133,7 +133,8 @@ func _build_hall_structure() -> void:
     _box(self, Vector3(0, 4.5, -12), Vector3(30, 9, 0.35), concrete, true)
     _box(self, Vector3(-15, 4.5, 0), Vector3(0.35, 9, 24), concrete, true)
     _box(self, Vector3(15, 4.5, 0), Vector3(0.35, 9, 24), concrete, true)
-    _box(self, Vector3(0, 9, 0), Vector3(30, 0.35, 24), roof)
+    # Pas de dalle opaque au-dessus de la caméra de supervision :
+    # les poutres et traverses conservent la structure industrielle sans cacher les machines.
     for x in [-13.5, -9.0, -4.5, 0.0, 4.5, 9.0, 13.5]:
         _box(self, Vector3(x, 4.5, -11.65), Vector3(0.28, 9, 0.28), dark_steel)
         _box(self, Vector3(x, 4.5, 11.65), Vector3(0.28, 9, 0.28), dark_steel)
@@ -413,12 +414,12 @@ func _build_player() -> void:
     collision.disabled = true
     camera = Camera3D.new()
     # Caméra de supervision placée sous la toiture : la ligne de production reste visible.
-    camera.position = Vector3(0, 6.6, 28.5)
-    camera.fov = 58.0
+    camera.position = Vector3(0, 7.2, 24.5)
+    camera.fov = 54.0
     camera.near = 0.1
     camera.far = 100.0
     add_child(camera)
-    camera.look_at(Vector3(0, 1.65, -1.0), Vector3.UP)
+    camera.look_at(Vector3(0, 1.45, -0.8), Vector3.UP)
     camera.current = true
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
