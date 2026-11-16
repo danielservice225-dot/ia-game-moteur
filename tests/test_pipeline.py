@@ -91,3 +91,21 @@ def test_clean_converts_string_infinity_to_missing():
     cleaned, report = clean_dataframe(frame)
     assert cleaned["measurement"].isna().sum() == 1
     assert report["non_finite_values_replaced"] == 1
+
+
+
+def test_predict_uses_training_feature_schema_and_rejects_missing_sensors(tmp_path):
+    path = tmp_path / "model.joblib"
+    train_model(sample_data(), "failure", path, random_state=12)
+    model, _ = load_model(path)
+
+    # A game may send extra sensor fields; they must not break a model trained
+    # on a smaller, explicitly defined feature set.
+    prediction = predict_rows(
+        model,
+        [{"temperature": 90, "vibration": 3.2, "pressure": 5.1, "rpm": 1400}],
+    )
+    assert len(prediction) == 1
+
+    with pytest.raises(ValueError, match="Variables capteurs absentes"):
+        predict_rows(model, [{"temperature": 90}])
