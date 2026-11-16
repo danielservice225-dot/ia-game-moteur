@@ -52,7 +52,7 @@ Les équations et seuils devront être documentés et confrontés à un jeu de d
 2. Vérifier les unités, valeurs manquantes, doublons, valeurs aberrantes et fuites de données.
 3. Séparer les données d'entraînement et de test avant toute sélection de modèle.
 4. Entraîner, évaluer et comparer plusieurs modèles.
-5. Produire un rapport par entraînement : paramètres, version des données, métriques, durée, mémoire et matériel.
+5. [x] Produire un rapport par entraînement : paramètres, version des données, métriques, durée, RSS mémoire, temps CPU et latence de prédiction. La mesure du matériel physique complet reste à valider.
 6. Relier chaque prédiction au contexte de la machine et à l'événement simulé.
 
 Le dataset synthétique actuel sert seulement à tester le circuit logiciel ; il ne prouve pas la qualité industrielle du modèle.
@@ -68,7 +68,8 @@ Le dataset synthétique actuel sert seulement à tester le circuit logiciel ; il
 - [x] Scripts Windows pour préparer les dépendances/modèle puis lancer le jeu et l'API en local hors ligne après préparation.
 - [ ] Tester les profils sur plusieurs cartes Intel, AMD et NVIDIA ; le catalogue reste heuristique tant que ces essais ne sont pas réalisés.
 - [ ] Mesure CPU et RAM totale du processus via les outils système sur le PC cible.
-- [ ] Mesures de latence du diagnostic ML.
+- [x] Mesures de latence et de ressources CPU/RSS par prédiction dans l'API locale.
+- [ ] Vérifier ces mesures sur le HP EliteBook 8570p et comparer avec les mesures système complètes.
 - [ ] Valider l'exécution hors ligne sur un PC Windows sans connexion Internet.
 - [ ] Confirmer la nouvelle CI avec tests GPU et test HTTP réel Godot → FastAPI → modèle AI4I.
 - [x] Historique des entraînements ML et export JSON des rapports par l'API locale.
