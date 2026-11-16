@@ -79,6 +79,12 @@ Le projet utilise le renderer Compatibility, une résolution de base de 1280×72
 
 Voir `docs/PERFORMANCE_BENCHMARK.md` et `docs/HARDWARE_PROFILE.md`.
 
+## Importer un dataset et entraîner depuis le jeu
+
+Le bouton **IMPORTER CSV / ENTRAÎNER L'IA** ouvre un panneau dans l'interface Godot. Il permet de sélectionner un CSV local, d'envoyer un aperçu à l'API, de choisir la colonne cible et de lancer l'entraînement. Les métriques et le nombre de lignes d'entraînement/test sont ensuite affichés dans le panneau.
+
+Le fichier est traité localement par le backend Python ; il n'est pas envoyé à un service cloud. Le modèle entraîné remplace le modèle local utilisé par les prochaines prédictions. Utilisez un dataset documenté pour toute évaluation scientifique.
+
 ## API
 
 - `GET /health` : état du service et présence du modèle.
