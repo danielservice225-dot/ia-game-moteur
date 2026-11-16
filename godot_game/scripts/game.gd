@@ -465,8 +465,16 @@ func _on_prediction_received(result: Dictionary) -> void:
     if predictions.is_empty():
         prediction_text = "Réponse reçue sans prédiction exploitable."
     else:
-        var failed := int(predictions[0]) == 1
-        prediction_text = "ALERTE : risque de panne détecté." if failed else "Équipement déclaré normal par le modèle."
+        var model_info: Dictionary = result.get("model", {})
+        var task := str(model_info.get("task", "classification"))
+        var target := str(model_info.get("target", ""))
+        if task == "classification" and target.to_lower() in ["failure", "machine failure", "machine_failure"]:
+            var failed := int(predictions[0]) == 1
+            prediction_text = "ALERTE : risque de panne détecté." if failed else "Équipement déclaré normal par le modèle."
+        elif task == "classification":
+            prediction_text = "Classe prédite pour %s : %s" % [target, str(predictions[0])]
+        else:
+            prediction_text = "Valeur estimée pour %s : %s" % [target, str(predictions[0])]
     _update_hud()
 
 func _on_api_failed(message: String) -> void:
