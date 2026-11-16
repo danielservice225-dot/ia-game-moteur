@@ -14,11 +14,12 @@ Le projet est un simulateur pédagogique. Il ne doit pas être présenté comme 
 - [x] Mesures de température, vibration et pression qui évoluent avec l'état de la machine.
 - [x] Panne de démonstration et remise en service par maintenance.
 - [x] Transmission des trois mesures au service Python pour diagnostic ML.
-- [x] Renderer Forward+ et effets d'occlusion ambiante.
+- [x] Renderer Compatibility (OpenGL) et configuration initiale adaptée aux GPU anciens.
+- [ ] Profil graphique basse consommation validé visuellement sur Intel HD Graphics 4000.
 - [x] Validation headless Godot 4.4.1 et tests automatisés de la logique de simulation sur la branche de travail.
 - [x] Tests Python et contrôle Ruff dans GitHub Actions.
 
-Les mesures actuelles sont synthétiques. Les personnages et machines visibles sont encore des modèles procéduraux simplifiés. La validation headless ne remplace pas un essai graphique sur le PC cible.
+Les mesures actuelles sont synthétiques. Les personnages et machines visibles sont encore des modèles procéduraux simplifiés. La validation headless ne remplace pas un essai graphique sur le PC cible. Le profil matériel de référence est documenté dans `docs/HARDWARE_PROFILE.md`.
 
 ## Phase 1 — Réalisme visuel
 
