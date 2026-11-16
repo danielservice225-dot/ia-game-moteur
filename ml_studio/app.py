@@ -10,7 +10,7 @@ APP_NAME = "IA GAME ML Studio"
 API_URL = "http://127.0.0.1:8765"
 
 def prepare_runtime():
-    root = Path(os.environ.get("LOCALAPPDATA", Path.home())) / APP_NAME if sys.platform == "win32" else Path.home()/".local/share/ia-game-ml-studio"
+    root = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "IA GAME" if sys.platform == "win32" else Path.home()/".local/share/ia-game-ml-studio"
     artifacts = root / "artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
     os.environ["IA_GAME_ARTIFACT_DIR"] = str(artifacts)
