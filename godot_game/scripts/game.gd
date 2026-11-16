@@ -12,6 +12,8 @@ var camera: Camera3D
 var industrial_life: Node
 var simulation: Variant
 var machines: Array[Dictionary] = []
+var animated_rotors: Array[MeshInstance3D] = []
+var conveyor_items: Array[MeshInstance3D] = []
 var selected_machine := -1
 var prediction_text := "Approchez-vous d'une machine et appuyez sur E."
 var elapsed := 0.0
@@ -234,6 +236,8 @@ func _make_motor_pump(origin: Vector3, steel: Material, blue: Material) -> void:
     _cylinder(root, Vector3(0.45, 1.1, 0), 0.62, 0.8, steel, Vector3(0, 0, PI / 2))
     _cylinder(root, Vector3(1.0, 1.0, 0), 0.85, 0.55, blue)
     _cylinder(root, Vector3(1.0, 1.0, 0.31), 0.3, 0.08, steel)
+    var motor_shaft := _cylinder(root, Vector3(1.0, 1.0, 0.48), 0.11, 0.42, steel, Vector3(0, 0, PI / 2))
+    animated_rotors.append(motor_shaft)
     for x in [-1.0, -0.2, 0.4]:
         _box(root, Vector3(x, 1.85, 0), Vector3(0.08, 0.22, 1.3), steel)
     _label_3d(root, "POMPE M-02", Vector3(0, 2.45, 0), Color(0.75, 0.88, 1.0))
@@ -255,10 +259,15 @@ func _make_conveyor(origin: Vector3, steel: Material, rubber: Material, yellow: 
     add_child(root)
     _box(root, Vector3(0, 0.8, 0), Vector3(9.0, 0.18, 1.65), rubber)
     for x in [-4.2, -3.0, -1.8, -0.6, 0.6, 1.8, 3.0, 4.2]:
-        _cylinder(root, Vector3(x, 0.72, 0), 0.17, 1.85, steel, Vector3(0, 0, PI / 2))
+        var roller := _cylinder(root, Vector3(x, 0.72, 0), 0.17, 1.85, steel, Vector3(0, 0, PI / 2))
+        animated_rotors.append(roller)
         _box(root, Vector3(x, 0.35, 0), Vector3(0.12, 0.7, 0.12), steel)
     for z in [-0.88, 0.88]:
         _box(root, Vector3(0, 1.0, z), Vector3(9.2, 0.22, 0.12), yellow)
+    for item_index in range(4):
+        var package_material := _material([Color("#c47a32"), Color("#477f9e"), Color("#b9c2c8"), Color("#8d9b55")][item_index], 0.18, 0.62)
+        var package := _box(root, Vector3(-3.2 + float(item_index) * 1.8, 1.08, 0), Vector3(0.72, 0.48, 0.62), package_material)
+        conveyor_items.append(package)
     _label_3d(root, "CONVOYEUR CV-04", Vector3(0, 1.8, 0), Color(1.0, 0.8, 0.25))
 
 func _make_pipe_run(steel: Material, yellow: Material) -> void:
@@ -430,6 +439,14 @@ func _on_machine_selected(index: int) -> void:
     _update_hud()
 
 func _process(delta: float) -> void:
+    for rotor in animated_rotors:
+        if is_instance_valid(rotor):
+            rotor.rotate_x(delta * 8.0)
+    for item in conveyor_items:
+        if is_instance_valid(item):
+            item.position.x += delta * 1.15
+            if item.position.x > 4.3:
+                item.position.x = -4.3
     performance_accumulator += delta
     if performance_accumulator >= 1.0:
         performance_accumulator = 0.0
