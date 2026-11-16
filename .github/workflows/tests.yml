@@ -18,6 +18,8 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
       - run: ruff check backend ml_engine tests scripts
+      - name: Check DataRobot AI Lab Python syntax
+        run: python -m compileall -q ai_lab
 
   godot:
     name: Godot 4 and live ML API integration
@@ -57,6 +59,14 @@ jobs:
           godot --headless --editor --path godot_game --quit 2>&1 | tee /tmp/godot-parse.log
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed to create an autoload" /tmp/godot-parse.log; then
             echo "GDScript parse errors detected."
+            exit 1
+          fi
+      - name: Smoke-test supervision game scene
+        run: |
+          set -o pipefail
+          godot --headless --path godot_game --quit-after 5 2>&1 | tee /tmp/godot-supervision.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Attempt to call" /tmp/godot-supervision.log; then
+            echo "Supervision scene runtime errors detected."
             exit 1
           fi
       - name: Run industrial simulation tests
