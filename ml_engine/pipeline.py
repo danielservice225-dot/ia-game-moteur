@@ -84,9 +84,9 @@ def clean_dataframe(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     ]
     return result, {
         "rows_before": int(before_rows),
-        "rows_after": int(len(result)),
+        "rows_after": len(result),
         "columns_before": int(before_columns),
-        "columns_after": int(len(result.columns)),
+        "columns_after": len(result.columns),
         "duplicate_rows_removed": int(duplicates_removed),
         "empty_columns_removed": empty_columns,
         "constant_columns_detected": constant_columns,
@@ -229,8 +229,8 @@ def train_model(
         "target": target,
         "features": list(X.columns),
         "metrics": metrics,
-        "train_rows": int(len(X_train)),
-        "test_rows": int(len(X_test)),
+        "train_rows": len(X_train),
+        "test_rows": len(X_test),
         "random_state": int(random_state),
         "test_size": float(test_size),
         "training_seconds": round(training_seconds, 6),
