@@ -343,7 +343,7 @@ func _input(event: InputEvent) -> void:
         player.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
         camera_pitch = clamp(camera_pitch - event.relative.y * MOUSE_SENSITIVITY, -1.15, 1.15)
         camera.rotation.x = camera_pitch
-    if event is InputEventKey and event.pressed and event.keycode == KEY_F6:
+    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
         _toggle_benchmark()
     if event is InputEventKey and event.pressed and event.keycode == KEY_F:
         _toggle_selected_machine()
