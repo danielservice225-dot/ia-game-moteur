@@ -38,7 +38,14 @@ jobs:
       - name: Start the local ML API
         run: |
           uvicorn backend.main:app --host 127.0.0.1 --port 8000 > /tmp/ia-game-api.log 2>&1 &
-          python -c "import time,urllib.request; url='http://127.0.0.1:8000/health'; exec('for attempt in range(30):\n try:\n  urllib.request.urlopen(url, timeout=2).read(); break\n except Exception:\n  time.sleep(1)\nelse:\n raise SystemExit(\'API did not start\')')"
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/ia-game-api.log
+          exit 1
       - name: Install Godot 4.4.1
         uses: chickensoft-games/setup-godot@v2
         with:
@@ -48,5 +55,7 @@ jobs:
         run: godot --headless --editor --path godot_game --quit
       - name: Run industrial simulation tests
         run: godot --headless --path godot_game --script res://tests/industrial_simulation_test.gd
+      - name: Run GPU adaptation tests
+        run: godot --headless --path godot_game --script res://tests/gpu_adaptive_test.gd
       - name: Verify Godot to Python ML prediction over HTTP
         run: godot --headless --path godot_game --script res://tests/api_integration_test.gd
