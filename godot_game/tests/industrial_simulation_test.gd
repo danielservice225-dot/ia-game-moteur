@@ -54,8 +54,21 @@ func _run() -> void:
         return
     var payload: Dictionary = simulation.call("get_sensor_payload", 0)
     if not _expect(
-        payload.has("temperature_c") and payload.has("vibration_mm_s") and payload.has("pressure_bar"),
-        "Le jeu expose les trois capteurs attendus par le modèle ML."
+        payload.has("temperature_c") and payload.has("vibration_mm_s") and payload.has("pressure_bar")
+        and payload.has("Type") and payload.has("Air temperature [K]")
+        and payload.has("Process temperature [K]") and payload.has("Rotational speed [rpm]")
+        and payload.has("Torque [Nm]") and payload.has("Tool wear [min]"),
+        "Le jeu expose les capteurs génériques et les six variables du dataset AI4I."
+    ):
+        return
+
+    if not _expect(
+        float(payload["Air temperature [K]"]) >= 295.0
+        and float(payload["Air temperature [K]"]) <= 305.0
+        and float(payload["Process temperature [K]"]) > float(payload["Air temperature [K]"])
+        and float(payload["Rotational speed [rpm]"]) > 0.0
+        and float(payload["Torque [Nm]"]) > 0.0,
+        "Les variables AI4I simulées doivent rester dans des plages plausibles."
     ):
         return
 
@@ -64,7 +77,7 @@ func _run() -> void:
 
 func _definitions() -> Array[Dictionary]:
     return [
-        {"name": "Presse hydraulique", "code": "P-01", "running": true, "temperature": 74.0, "vibration": 1.8, "pressure": 5.0},
+        {"name": "Presse hydraulique", "code": "P-01", "running": true, "temperature": 74.0, "vibration": 1.8, "pressure": 5.0, "machine_type": "M", "tool_wear_min": 38.0},
         {"name": "Pompe centrifuge", "code": "M-02", "running": true, "temperature": 66.0, "vibration": 1.6, "pressure": 5.5},
         {"name": "Compresseur industriel", "code": "C-03", "running": true, "temperature": 70.0, "vibration": 1.9, "pressure": 6.8},
         {"name": "Convoyeur motorisé", "code": "CV-04", "running": true, "temperature": 48.0, "vibration": 1.2, "pressure": 5.0}
