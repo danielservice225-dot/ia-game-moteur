@@ -53,6 +53,15 @@ def clean_dataframe(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         frame.select_dtypes(include=[np.number]).isin([np.inf, -np.inf]).sum().sum()
     )
 
+    blank_strings_converted = 0
+    for column in result.select_dtypes(include=["object", "string"]).columns:
+        result[column] = result[column].map(
+            lambda value: value.strip() if isinstance(value, str) else value
+        )
+        before_blank_cleanup = int(result[column].isna().sum())
+        result[column] = result[column].replace(r"^\\s*$", np.nan, regex=True)
+        blank_strings_converted += int(result[column].isna().sum()) - before_blank_cleanup
+
     coerced_columns: list[str] = []
     for column in result.select_dtypes(include=["object", "string"]).columns:
         non_null = result[column].dropna()
@@ -73,6 +82,19 @@ def clean_dataframe(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     non_finite_replaced += coerced_non_finite
     result = result.replace([np.inf, -np.inf], np.nan)
 
+    numeric_outliers_iqr: dict[str, int] = {}
+    for column in result.select_dtypes(include=["number"]).columns:
+        values = result[column].dropna()
+        if len(values) >= 4:
+            q1, q3 = values.quantile([0.25, 0.75])
+            spread = q3 - q1
+            if spread > 0:
+                lower_bound = q1 - 1.5 * spread
+                upper_bound = q3 + 1.5 * spread
+                count = int(((values < lower_bound) | (values > upper_bound)).sum())
+                if count:
+                    numeric_outliers_iqr[str(column)] = count
+
     missing_after_coercion = {str(k): int(v) for k, v in result.isna().sum().items()}
     result = result.drop_duplicates().reset_index(drop=True)
     duplicates_removed = before_rows - len(result)
@@ -91,6 +113,8 @@ def clean_dataframe(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         "empty_columns_removed": empty_columns,
         "constant_columns_detected": constant_columns,
         "numeric_columns_coerced": coerced_columns,
+        "blank_strings_converted_to_missing": int(blank_strings_converted),
+        "numeric_outliers_iqr_detected": numeric_outliers_iqr,
         "non_finite_values_replaced": non_finite_replaced,
         "missing_values_before": missing_before,
         "missing_values_after_coercion": missing_after_coercion,
