@@ -177,10 +177,10 @@ func _build_production_line() -> void:
     _make_motor_pump(Vector3(-7, 0, -3), steel, painted_blue)
     _make_compressor(Vector3(7, 0, -3), steel, safety_yellow)
     _make_conveyor(Vector3(0, 0, 4), steel, rubber, safety_yellow)
-    _register_machine("Presse hydraulique", "P-01", Vector3(0, 0, -4), 86.0, 3.1, 4.1)
-    _register_machine("Pompe centrifuge", "M-02", Vector3(-7, 0, -3), 68.0, 2.4, 5.2)
-    _register_machine("Compresseur industriel", "C-03", Vector3(7, 0, -3), 74.0, 2.8, 7.0)
-    _register_machine("Convoyeur motorisé", "CV-04", Vector3(0, 0, 4), 52.0, 1.8, 2.2)
+    _register_machine("Presse hydraulique", "P-01", Vector3(0, 0, -4), 74.0, 1.8, 5.0)
+    _register_machine("Pompe centrifuge", "M-02", Vector3(-7, 0, -3), 66.0, 1.6, 5.5)
+    _register_machine("Compresseur industriel", "C-03", Vector3(7, 0, -3), 70.0, 1.9, 6.8)
+    _register_machine("Convoyeur motorisé", "CV-04", Vector3(0, 0, 4), 48.0, 1.2, 5.0)
     _make_pipe_run(steel, safety_yellow)
 
 func _make_press(origin: Vector3, blue: Material, steel: Material, yellow: Material) -> void:

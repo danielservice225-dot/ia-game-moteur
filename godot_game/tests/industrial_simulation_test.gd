@@ -12,6 +12,14 @@ func _run() -> void:
     var snapshot: Dictionary = simulation.call("get_snapshot", 0)
     if not _expect(snapshot.get("state") == "RUNNING", "Une machine démarre en RUNNING."):
         return
+    var healthy_payload: Dictionary = simulation.call("get_sensor_payload", 0)
+    if not _expect(
+        float(healthy_payload["temperature_c"]) < 78.0
+        and float(healthy_payload["vibration_mm_s"]) < 2.3
+        and float(healthy_payload["pressure_bar"]) > 4.4,
+        "Les mesures initiales correspondent à un état nominal du dataset de démonstration."
+    ):
+        return
 
     var stopped: bool = simulation.call("toggle_machine", 0)
     if not _expect(not stopped, "La touche F logique arrête la machine."):
@@ -51,15 +59,15 @@ func _run() -> void:
     ):
         return
 
-    print("PASS: 8 contrôles de simulation industrielle Godot.")
+    print("PASS: contrôles de simulation industrielle terminés.")
     quit(0)
 
 func _definitions() -> Array[Dictionary]:
     return [
-        {"name": "Presse hydraulique", "code": "P-01", "running": true, "temperature": 86.0, "vibration": 3.1, "pressure": 4.1},
-        {"name": "Pompe centrifuge", "code": "M-02", "running": true, "temperature": 68.0, "vibration": 2.4, "pressure": 5.2},
-        {"name": "Compresseur industriel", "code": "C-03", "running": true, "temperature": 74.0, "vibration": 2.8, "pressure": 7.0},
-        {"name": "Convoyeur motorisé", "code": "CV-04", "running": true, "temperature": 52.0, "vibration": 1.8, "pressure": 2.2}
+        {"name": "Presse hydraulique", "code": "P-01", "running": true, "temperature": 74.0, "vibration": 1.8, "pressure": 5.0},
+        {"name": "Pompe centrifuge", "code": "M-02", "running": true, "temperature": 66.0, "vibration": 1.6, "pressure": 5.5},
+        {"name": "Compresseur industriel", "code": "C-03", "running": true, "temperature": 70.0, "vibration": 1.9, "pressure": 6.8},
+        {"name": "Convoyeur motorisé", "code": "CV-04", "running": true, "temperature": 48.0, "vibration": 1.2, "pressure": 5.0}
     ]
 
 func _expect(condition: bool, message: String) -> bool:
