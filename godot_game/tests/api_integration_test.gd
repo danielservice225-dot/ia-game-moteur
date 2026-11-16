@@ -183,10 +183,7 @@ func _send_request(
 
 
 func _http_ok(response: Array) -> bool:
-    return response.size() >= 4 \
-        and int(response[0]) == HTTPRequest.RESULT_SUCCESS \
-        and int(response[1]) >= 200 \
-        and int(response[1]) < 300
+    return response.size() >= 4 and int(response[0]) == HTTPRequest.RESULT_SUCCESS and int(response[1]) >= 200 and int(response[1]) < 300
 
 
 func _expect(condition: bool, message: String) -> bool:
