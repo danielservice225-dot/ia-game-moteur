@@ -1,33 +1,46 @@
-# Mesure des performances IA GAME
+# Profils graphiques et télémétrie IA GAME
 
-## Affichage en jeu
+## Adaptation automatique au GPU
 
-Le HUD affiche une fois par seconde :
-- le nombre d'images par seconde (FPS) ;
-- la mémoire statique suivie par Godot, en Mo ;
-- le temps écoulé depuis le lancement ou depuis le début de l'enregistrement.
+Au lancement, IA GAME détecte le nom et le fabricant du GPU via Godot, ainsi que le moteur de rendu, le système d'exploitation, le nombre de processeurs logiques et la résolution de l'écran.
 
-La mémoire affichée est la mémoire suivie par le moteur Godot. Ce n'est pas la mémoire totale du processus Windows et elle ne remplace pas une mesure système.
+Le jeu choisit un profil initial prudent :
+- **Économique** pour quelques GPU anciens connus et les rendus logiciels : éclairages ponctuels désactivés.
+- **Équilibré** pour les GPU intégrés et les cartes non reconnues : une partie des éclairages ponctuels est activée.
+- **Élevé** pour les GPU NVIDIA GeForce et AMD Radeon reconnus : tous les éclairages ponctuels sont activés au départ.
 
-## Enregistrer un benchmark
+L'adaptation observe ensuite les FPS : sous 24 FPS, les éclairages ponctuels sont désactivés ; au-dessus de 48 FPS pendant dix secondes, ils peuvent être réactivés pour les profils non économiques.
 
-1. Lancer le projet Godot et ouvrir la scène principale.
-2. Appuyer sur **F6** pour commencer l'enregistrement.
-3. Effectuer un parcours reproductible : rester immobile, marcher dans l'usine, inspecter successivement les quatre équipements, injecter une panne avec **G**, puis effectuer la maintenance avec **M**.
-4. Appuyer de nouveau sur **F6** pour arrêter et fermer le fichier.
-5. Récupérer le fichier `ia_game_benchmark.csv` dans le dossier utilisateur de Godot (`user://`, visible depuis Godot via Projet > Ouvrir le dossier des données utilisateur).
+Le catalogue de règles initiales est dans `data/gpu_compatibility_profiles.csv`.
 
-Le CSV contient une ligne par seconde : temps, FPS, mémoire statique Godot, code et état de la machine sélectionnée, température, vibration et pression. Les lignes sans machine sélectionnée utilisent le code et l'état `none`.
+### Limites importantes
 
-## Limites et protocole matériel
+- Il n'existe pas d'API Godot portable permettant de connaître de manière fiable la VRAM disponible sur toutes les cartes et tous les pilotes. Le jeu ne prétend donc pas mesurer la VRAM.
+- Le nom du GPU ne suffit pas à garantir ses performances : le pilote, la température, l'alimentation et les autres applications ont aussi un effet.
+- La résolution du jeu reste réglée à 1280x720 ; ce système adapte ici surtout l'éclairage, pas la résolution ni tous les effets graphiques.
+- Les catégories initiales sont des heuristiques, pas un classement certifié de toutes les cartes graphiques.
+- Le système doit être testé avec des GPU Intel, AMD et NVIDIA réels. Un GPU inconnu reçoit le profil équilibré et l'ajustement par FPS.
 
-- Le script ne mesure pas le pourcentage CPU : Godot ne fournit pas ici une mesure CPU portable et fiable entre les systèmes.
-- Pour obtenir la consommation RAM totale et CPU, compléter le CSV avec les mesures du Gestionnaire des tâches Windows ou du Moniteur système Linux.
-- Faire les essais sur le HP EliteBook 8570p, Intel HD Graphics 4000, 16 Go RAM, avec la même résolution, le même pilote et le même scénario.
-- Répéter chaque scénario au moins trois fois et conserver les fichiers bruts.
-- Ne pas considérer 30 FPS comme atteint avant mesure réelle sur le PC cible.
+## CSV généré automatiquement
+
+À chaque lancement du jeu, le gestionnaire crée ou remplace le fichier :
+
+`user://ia_game_hardware_benchmark.csv`
+
+Le fichier contient :
+- une ligne `hardware` avec le GPU, le fabricant, le moteur de rendu, le système, le nombre de processeurs logiques et la résolution ;
+- une ligne `sample` par seconde avec les FPS, la mémoire statique suivie par Godot, le profil graphique et l'état des éclairages.
+
+Aucune touche F6 n'est nécessaire pour ce journal automatique. Le fichier est écrit dans le dossier de données utilisateur de Godot. Depuis Godot, utilisez **Projet > Ouvrir le dossier des données utilisateur** pour le retrouver.
+
+La mémoire affichée est celle suivie par Godot, pas la RAM totale du processus. Les FPS et autres valeurs ne sont réels que lorsque le jeu tourne sur l'ordinateur concerné.
+
+## Validation
+
+- Lancer la scène sur chaque ordinateur cible.
+- Vérifier que le profil et le GPU affichés dans le HUD correspondent à la machine.
+- Jouer au moins cinq minutes et conserver le CSV produit.
+- Répéter le test en déplacement, près des quatre équipements et pendant une panne simulée.
+- Comparer les FPS moyens/minimaux et la mémoire suivie par Godot.
+- Ne jamais présenter le catalogue de profils comme un benchmark de FPS mesurés.
 - Les tests headless de CI vérifient le chargement et la logique, pas le rendu ni les performances graphiques.
-
-## Critères de validation
-
-Consigner la moyenne et le minimum FPS, la mémoire Godot, la RAM système et le CPU système. Comparer les mesures à l'arrêt, en déplacement et pendant les interactions avec les machines. Ne pas annoncer de résultat matériel sans joindre les fichiers de mesure.
