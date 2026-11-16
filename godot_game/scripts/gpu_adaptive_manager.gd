@@ -18,6 +18,7 @@ var adaptive_lights: Array[Light3D] = []
 var base_light_visibility: Array[bool] = []
 var lights_reduced := false
 var telemetry: FileAccess
+var session_id := ""
 
 func _ready() -> void:
     gpu_name = RenderingServer.get_video_adapter_name()
@@ -100,13 +101,19 @@ func get_profile_label() -> String:
     return "%s | %s" % [profile_name, gpu_name]
 
 func _open_telemetry() -> void:
-    telemetry = FileAccess.open(TELEMETRY_PATH, FileAccess.WRITE)
+    session_id = str(int(Time.get_unix_time_from_system()))
+    var existing_file := FileAccess.file_exists(TELEMETRY_PATH)
+    var open_mode := FileAccess.READ_WRITE if existing_file else FileAccess.WRITE
+    telemetry = FileAccess.open(TELEMETRY_PATH, open_mode)
     if telemetry == null:
         push_warning("IA GAME : impossible de créer le CSV de télémétrie.")
         return
-    telemetry.store_line("record_type,elapsed_s,gpu_name,gpu_vendor,renderer,os,cpu_threads,screen_width,screen_height,fps,godot_static_memory_mb,graphics_profile,profile_reason,lights_reduced")
-    telemetry.store_line("hardware,0,\"%s\",\"%s\",\"%s\",\"%s\",%d,%d,%d,0,%.2f,\"%s\",\"%s\",%s" % [
-        _csv_escape(gpu_name), _csv_escape(gpu_vendor), _csv_escape(renderer_name),
+    if existing_file:
+        telemetry.seek_end()
+    else:
+        telemetry.store_line("session_id,record_type,elapsed_s,gpu_name,gpu_vendor,renderer,os,cpu_threads,screen_width,screen_height,fps,godot_static_memory_mb,graphics_profile,profile_reason,lights_reduced")
+    telemetry.store_line("%s,hardware,0,\"%s\",\"%s\",\"%s\",\"%s\",%d,%d,%d,0,%.2f,\"%s\",\"%s\",%s" % [
+        session_id, _csv_escape(gpu_name), _csv_escape(gpu_vendor), _csv_escape(renderer_name),
         _csv_escape(OS.get_name()), OS.get_processor_count(),
         DisplayServer.screen_get_size().x, DisplayServer.screen_get_size().y,
         float(OS.get_static_memory_usage()) / (1024.0 * 1024.0),
@@ -118,8 +125,8 @@ func _write_sample(fps: float) -> void:
     if telemetry == null:
         return
     var memory_mb := float(OS.get_static_memory_usage()) / (1024.0 * 1024.0)
-    telemetry.store_line("sample,%.1f,\"%s\",\"%s\",\"%s\",\"%s\",%d,%d,%d,%.1f,%.2f,\"%s\",\"%s\",%s" % [
-        elapsed, _csv_escape(gpu_name), _csv_escape(gpu_vendor),
+    telemetry.store_line("%s,sample,%.1f,\"%s\",\"%s\",\"%s\",\"%s\",%d,%d,%d,%.1f,%.2f,\"%s\",\"%s\",%s" % [
+        session_id, elapsed, _csv_escape(gpu_name), _csv_escape(gpu_vendor),
         _csv_escape(renderer_name), _csv_escape(OS.get_name()),
         OS.get_processor_count(), DisplayServer.screen_get_size().x,
         DisplayServer.screen_get_size().y, fps, memory_mb,
