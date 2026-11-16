@@ -63,7 +63,10 @@ func _worker(label: String, origin: Vector3, jacket_color: Color, direction: flo
     var yellow := _material(Color(1.0, 0.72, 0.04), 0.1)
     _capsule(root, Vector3(0, 1.22, 0), 0.29, 0.86, jacket)
     _box(root, Vector3(0, 1.25, -0.27), Vector3(0.35, 0.55, 0.035), yellow)
-    _mesh(root, SphereMesh.new(), Vector3(0, 1.95, 0), skin)
+    var head_mesh := SphereMesh.new()
+    head_mesh.radius = 0.22
+    head_mesh.height = 0.44
+    _mesh(root, head_mesh, Vector3(0, 1.95, 0), skin)
     _capsule(root, Vector3(0, 2.18, 0), 0.235, 0.13, yellow)
     var arms: Array[Node3D] = []
     var legs: Array[Node3D] = []
@@ -100,22 +103,22 @@ func _build_mechanisms() -> void:
     factory.add_child(press)
     var ram := _box(press, Vector3(0, 2.0, 0.82), Vector3(1.15, 0.24, 0.55), yellow)
     var lamp0 := _lamp(press, Vector3(1.2, 3.45, 0.7))
-    machines.append({"part": ram, "lamp": lamp0, "kind": "press"})
+    machines.append({"part": ram, "lamp": lamp0, "kind": "press", "running": true})
     var pump := Node3D.new()
     pump.position = Vector3(-7, 0, -3)
     factory.add_child(pump)
     var rotor := _cylinder(pump, Vector3(1, 1, 0.48), 0.24, 0.12, yellow)
-    machines.append({"part": rotor, "lamp": _lamp(pump, Vector3(1.25, 2.1, 0)), "kind": "pump"})
+    machines.append({"part": rotor, "lamp": _lamp(pump, Vector3(1.25, 2.1, 0)), "kind": "pump", "running": true})
     var comp := Node3D.new()
     comp.position = Vector3(7, 0, -3)
     factory.add_child(comp)
     var fan := _cylinder(comp, Vector3(0, 1.45, 1.16), 0.42, 0.12, steel)
-    machines.append({"part": fan, "lamp": _lamp(comp, Vector3(1.25, 2.6, 0)), "kind": "compressor"})
+    machines.append({"part": fan, "lamp": _lamp(comp, Vector3(1.25, 2.6, 0)), "kind": "compressor", "running": true})
     var conv := Node3D.new()
     conv.position = Vector3(0, 0, 4)
     factory.add_child(conv)
     var roller := _cylinder(conv, Vector3(-4.35, 0.78, 0), 0.18, 1.8, yellow, Vector3(0, 0, PI / 2))
-    machines.append({"part": roller, "lamp": _lamp(conv, Vector3(4.4, 1.7, 0)), "kind": "conveyor"})
+    machines.append({"part": roller, "lamp": _lamp(conv, Vector3(4.4, 1.7, 0)), "kind": "conveyor", "running": true})
 
 func _build_crates() -> void:
     var colors := [Color(0.78, 0.28, 0.12), Color(0.12, 0.42, 0.72), Color(0.82, 0.68, 0.24)]
@@ -125,6 +128,7 @@ func _build_crates() -> void:
 func set_machine_running(index: int, running: bool) -> void:
     if index < 0 or index >= machines.size():
         return
+    machines[index]["running"] = running
     var lamp := machines[index]["lamp"] as MeshInstance3D
     var mat := _material(Color(0.08, 0.9, 0.28) if running else Color(0.92, 0.06, 0.04))
     mat.emission_enabled = true
@@ -147,6 +151,8 @@ func _process(delta: float) -> void:
         legs[0].rotation.x = -sin(phase) * 0.22
         legs[1].rotation.x = sin(phase) * 0.22
     for data in machines:
+        if not bool(data["running"]):
+            continue
         var part := data["part"] as Node3D
         match data["kind"]:
             "press":
@@ -157,7 +163,8 @@ func _process(delta: float) -> void:
                 part.rotate_z(delta * 7.0)
             "conveyor":
                 part.rotate_x(delta * 5.0)
-    for crate in crates:
-        crate.position.x += delta * 1.6
-        if crate.position.x > 4.0:
-            crate.position.x = -4.0
+    if bool(machines[3]["running"]):
+        for crate in crates:
+            crate.position.x += delta * 1.6
+            if crate.position.x > 4.0:
+                crate.position.x = -4.0

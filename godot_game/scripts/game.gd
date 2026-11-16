@@ -1,30 +1,19 @@
 extends Node3D
 
 const ApiClient = preload("res://scripts/ia_game_api.gd")
-const IndustrialLife = preload("res://scripts/industrial_life.gd")
-
-const FLOOR_SIZE := Vector3(30.0, 0.5, 24.0)
-const PLAYER_SPEED := 5.0
-const MOUSE_SENSITIVITY := 0.0022
-
 var player: CharacterBody3D
 var camera: Camera3D
-var camera_pitch := 0.0
 var api: Node
-var industrial_life: Node
 var status_label: Label
 var result_label: Label
-var objective_label: Label
-var machines: Array[Dictionary] = []
-var selected_machine := -1
-var prediction_text := "Approchez-vous d'une machine et appuyez sur E."
-var elapsed := 0.0
+var machine_area: Area3D
+var machine_temperature := 86.0
+var machine_vibration := 3.1
+var machine_pressure := 4.1
+var prediction_text := "IA non interrogée"
 
 func _ready() -> void:
     _build_factory()
-    industrial_life = IndustrialLife.new()
-    add_child(industrial_life)
-    industrial_life.setup(self)
     _build_player()
     _build_hud()
     api = ApiClient.new()
@@ -34,271 +23,75 @@ func _ready() -> void:
     _update_hud()
 
 func _build_factory() -> void:
-    _add_floor()
-    _build_hall_structure()
-    _build_lighting()
-    _build_production_line()
-    _build_storage_area()
-    _build_safety_markings()
-    _build_control_station()
+    _make_box(Vector3(0, -0.35, 0), Vector3(24, 0.4, 24), Color(0.12, 0.16, 0.19))
+    _make_box(Vector3(0, 0.15, -5), Vector3(18, 0.3, 0.35), Color(0.95, 0.55, 0.12))
+    _make_box(Vector3(-8, 2, -5), Vector3(0.25, 4, 0.25), Color(0.9, 0.45, 0.08))
+    _make_box(Vector3(8, 2, -5), Vector3(0.25, 4, 0.25), Color(0.9, 0.45, 0.08))
+    _make_box(Vector3(0, 4, -5), Vector3(16, 0.2, 0.2), Color(0.9, 0.45, 0.08))
+    _make_machine(Vector3(0, 1, -3), "PRESSE INDUSTRIELLE", Color(0.16, 0.42, 0.72))
+    _make_box(Vector3(-5, 0.55, 1), Vector3(2.2, 1.1, 1.2), Color(0.22, 0.28, 0.32))
+    _make_box(Vector3(5, 0.55, 1), Vector3(2.2, 1.1, 1.2), Color(0.22, 0.28, 0.32))
+    for x in range(-8, 9, 2):
+        _make_box(Vector3(x, 0.08, -9), Vector3(0.12, 0.12, 0.5), Color(0.95, 0.7, 0.15))
 
-func _material(color: Color, metallic: float = 0.0, roughness: float = 0.65) -> StandardMaterial3D:
-    var material := StandardMaterial3D.new()
-    material.albedo_color = color
-    material.metallic = metallic
-    material.roughness = roughness
-    return material
-
-func _box(parent: Node3D, pos: Vector3, size: Vector3, material: Material, collision: bool = false) -> MeshInstance3D:
+func _make_box(pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
     var mesh_instance := MeshInstance3D.new()
     var mesh := BoxMesh.new()
     mesh.size = size
     mesh_instance.mesh = mesh
     mesh_instance.position = pos
+    var material := StandardMaterial3D.new()
+    material.albedo_color = color
+    material.metallic = 0.25
+    material.roughness = 0.55
     mesh_instance.material_override = material
-    parent.add_child(mesh_instance)
-    if collision:
-        var body := StaticBody3D.new()
-        body.position = pos
-        var shape_node := CollisionShape3D.new()
-        var shape := BoxShape3D.new()
-        shape.size = size
-        shape_node.shape = shape
-        body.add_child(shape_node)
-        add_child(body)
+    add_child(mesh_instance)
     return mesh_instance
 
-func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, material: Material, rotation: Vector3 = Vector3.ZERO) -> MeshInstance3D:
-    var instance := MeshInstance3D.new()
-    var mesh := CylinderMesh.new()
-    mesh.top_radius = radius
-    mesh.bottom_radius = radius
-    mesh.height = height
-    mesh.radial_segments = 24
-    instance.mesh = mesh
-    instance.position = pos
-    instance.rotation = rotation
-    instance.material_override = material
-    parent.add_child(instance)
-    return instance
-
-func _label_3d(parent: Node3D, text_value: String, pos: Vector3, color: Color = Color(0.9, 0.95, 1.0)) -> void:
+func _make_machine(pos: Vector3, machine_name: String, color: Color) -> void:
+    var body := _make_box(pos, Vector3(2.5, 2, 1.8), color)
+    body.name = "IndustrialMachine"
+    _make_box(pos + Vector3(0, 1.15, 0), Vector3(1.1, 0.3, 1.1), Color(0.12, 0.16, 0.2))
+    _make_box(pos + Vector3(0, 0.15, 0.96), Vector3(0.8, 0.55, 0.08), Color(0.08, 0.12, 0.15))
     var label := Label3D.new()
-    label.text = text_value
-    label.position = pos
-    label.font_size = 32
-    label.modulate = color
-    label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-    parent.add_child(label)
-
-func _add_floor() -> void:
-    var floor_body := StaticBody3D.new()
-    floor_body.name = "IndustrialConcreteFloor"
-    add_child(floor_body)
-    var floor_mesh := BoxMesh.new()
-    floor_mesh.size = FLOOR_SIZE
-    var floor_instance := MeshInstance3D.new()
-    floor_instance.mesh = floor_mesh
-    floor_instance.position.y = -0.25
-    floor_instance.material_override = _material(Color(0.28, 0.31, 0.33), 0.08, 0.88)
-    floor_body.add_child(floor_instance)
-    var floor_shape := CollisionShape3D.new()
-    var box_shape := BoxShape3D.new()
-    box_shape.size = FLOOR_SIZE
-    floor_shape.shape = box_shape
-    floor_shape.position.y = -0.25
-    floor_body.add_child(floor_shape)
-    var line_material := _material(Color(0.78, 0.72, 0.48), 0.0, 0.8)
-    for x in range(-14, 15, 2):
-        _box(self, Vector3(float(x), 0.012, 0), Vector3(0.025, 0.02, 23.0), line_material)
-    for z in range(-10, 11, 2):
-        _box(self, Vector3(0, 0.013, float(z)), Vector3(29.0, 0.02, 0.025), line_material)
-
-func _build_hall_structure() -> void:
-    var concrete := _material(Color(0.48, 0.51, 0.52), 0.05, 0.9)
-    var dark_steel := _material(Color(0.12, 0.16, 0.19), 0.72, 0.36)
-    var roof := _material(Color(0.24, 0.28, 0.31), 0.55, 0.5)
-    var glass := _material(Color(0.12, 0.36, 0.48, 0.72), 0.25, 0.18)
-    _box(self, Vector3(0, 4.5, -12), Vector3(30, 9, 0.35), concrete, true)
-    _box(self, Vector3(-15, 4.5, 0), Vector3(0.35, 9, 24), concrete, true)
-    _box(self, Vector3(15, 4.5, 0), Vector3(0.35, 9, 24), concrete, true)
-    _box(self, Vector3(0, 9, 0), Vector3(30, 0.35, 24), roof)
-    for x in [-13.5, -9.0, -4.5, 0.0, 4.5, 9.0, 13.5]:
-        _box(self, Vector3(x, 4.5, -11.65), Vector3(0.28, 9, 0.28), dark_steel)
-        _box(self, Vector3(x, 4.5, 11.65), Vector3(0.28, 9, 0.28), dark_steel)
-        _box(self, Vector3(x, 8.45, 0), Vector3(0.22, 0.22, 23.5), dark_steel)
-    for z in [-9.0, -5.0, -1.0, 3.0, 7.0, 11.0]:
-        _box(self, Vector3(0, 8.35, z), Vector3(29.5, 0.25, 0.22), dark_steel)
-    for x in [-11.0, -7.0, 7.0, 11.0]:
-        _box(self, Vector3(x, 5.9, -11.78), Vector3(2.6, 2.3, 0.06), glass)
-        _box(self, Vector3(x, 5.9, -11.72), Vector3(0.08, 2.4, 0.08), dark_steel)
-    _box(self, Vector3(0, 1.6, -11.72), Vector3(4.0, 3.2, 0.12), dark_steel)
-    _label_3d(self, "IA GAME  |  USINE DE PRODUCTION", Vector3(0, 7.2, -11.35), Color(0.95, 0.72, 0.2))
-
-func _build_lighting() -> void:
-    var sun := DirectionalLight3D.new()
-    sun.rotation_degrees = Vector3(-58, -25, 0)
-    sun.light_energy = 1.15
-    sun.shadow_enabled = true
-    add_child(sun)
-    for x in [-10.0, -3.5, 3.5, 10.0]:
-        var light := OmniLight3D.new()
-        light.position = Vector3(x, 8.1, 0)
-        light.light_color = Color(0.78, 0.86, 1.0)
-        light.light_energy = 1.5
-        light.omni_range = 10.0
-        add_child(light)
-        var housing := _material(Color(0.1, 0.12, 0.14), 0.65, 0.4)
-        _box(self, Vector3(x, 8.55, 0), Vector3(2.4, 0.18, 0.55), housing)
-        _box(self, Vector3(x, 8.43, 0), Vector3(2.1, 0.06, 0.32), _material(Color(0.82, 0.9, 1.0), 0.0, 0.25))
-
-func _register_machine(machine_name: String, code: String, position: Vector3, temperature: float, vibration: float, pressure: float) -> void:
-    machines.append({
-        "name": machine_name,
-        "code": code,
-        "position": position,
-        "temperature": temperature,
-        "vibration": vibration,
-        "pressure": pressure,
-        "running": true
-    })
-
-func _build_production_line() -> void:
-    var steel := _material(Color(0.36, 0.41, 0.44), 0.82, 0.28)
-    var painted_blue := _material(Color(0.08, 0.24, 0.42), 0.58, 0.34)
-    var safety_yellow := _material(Color(0.95, 0.58, 0.06), 0.25, 0.42)
-    var rubber := _material(Color(0.045, 0.055, 0.06), 0.0, 0.92)
-    _make_press(Vector3(0, 0, -4), painted_blue, steel, safety_yellow)
-    _make_motor_pump(Vector3(-7, 0, -3), steel, painted_blue)
-    _make_compressor(Vector3(7, 0, -3), steel, safety_yellow)
-    _make_conveyor(Vector3(0, 0, 4), steel, rubber, safety_yellow)
-    _register_machine("Presse hydraulique", "P-01", Vector3(0, 0, -4), 86.0, 3.1, 4.1)
-    _register_machine("Pompe centrifuge", "M-02", Vector3(-7, 0, -3), 68.0, 2.4, 5.2)
-    _register_machine("Compresseur industriel", "C-03", Vector3(7, 0, -3), 74.0, 2.8, 7.0)
-    _register_machine("Convoyeur motorisé", "CV-04", Vector3(0, 0, 4), 52.0, 1.8, 2.2)
-    _make_pipe_run(steel, safety_yellow)
-
-func _make_press(origin: Vector3, blue: Material, steel: Material, yellow: Material) -> void:
-    var root := Node3D.new()
-    root.position = origin
-    add_child(root)
-    _box(root, Vector3(0, 0.35, 0), Vector3(3.4, 0.7, 2.6), steel)
-    _box(root, Vector3(-1.25, 2.0, 0), Vector3(0.42, 3.3, 0.5), blue)
-    _box(root, Vector3(1.25, 2.0, 0), Vector3(0.42, 3.3, 0.5), blue)
-    _box(root, Vector3(0, 3.55, 0), Vector3(3.0, 0.5, 2.0), blue)
-    _box(root, Vector3(0, 1.55, 0), Vector3(1.9, 0.22, 1.6), steel)
-    _box(root, Vector3(0, 2.35, 0), Vector3(1.45, 1.0, 1.2), yellow)
-    _cylinder(root, Vector3(0, 3.0, 0), 0.28, 0.9, steel)
-    _box(root, Vector3(0, 0.9, 1.35), Vector3(0.85, 0.45, 0.08), _material(Color(0.05, 0.09, 0.11), 0.2, 0.35))
-    _label_3d(root, "PRESSE P-01", Vector3(0, 4.0, 0), Color(1.0, 0.8, 0.25))
-    for x in [-1.45, 1.45]:
-        _cylinder(root, Vector3(x, 0.95, 0), 0.16, 0.5, steel)
-    _make_guard_rail(root, Vector3(0, 0, 1.8), 2.8, yellow)
-
-func _make_motor_pump(origin: Vector3, steel: Material, blue: Material) -> void:
-    var root := Node3D.new()
-    root.position = origin
-    add_child(root)
-    _box(root, Vector3(0, 0.25, 0), Vector3(3.0, 0.5, 2.0), steel)
-    _cylinder(root, Vector3(-0.6, 1.1, 0), 0.72, 1.7, blue, Vector3(0, 0, PI / 2))
-    _cylinder(root, Vector3(0.45, 1.1, 0), 0.62, 0.8, steel, Vector3(0, 0, PI / 2))
-    _cylinder(root, Vector3(1.0, 1.0, 0), 0.85, 0.55, blue)
-    _cylinder(root, Vector3(1.0, 1.0, 0.31), 0.3, 0.08, steel)
-    for x in [-1.0, -0.2, 0.4]:
-        _box(root, Vector3(x, 1.85, 0), Vector3(0.08, 0.22, 1.3), steel)
-    _label_3d(root, "POMPE M-02", Vector3(0, 2.45, 0), Color(0.75, 0.88, 1.0))
-
-func _make_compressor(origin: Vector3, steel: Material, yellow: Material) -> void:
-    var root := Node3D.new()
-    root.position = origin
-    add_child(root)
-    _box(root, Vector3(0, 0.3, 0), Vector3(3.0, 0.6, 2.1), steel)
-    _cylinder(root, Vector3(0, 1.45, 0), 0.95, 2.2, yellow, Vector3(0, 0, PI / 2))
-    _cylinder(root, Vector3(-1.2, 1.45, 0), 0.65, 0.18, steel, Vector3(0, 0, PI / 2))
-    _cylinder(root, Vector3(1.2, 1.45, 0), 0.65, 0.18, steel, Vector3(0, 0, PI / 2))
-    _cylinder(root, Vector3(0, 2.55, 0), 0.12, 0.7, steel)
-    _label_3d(root, "COMPRESSEUR C-03", Vector3(0, 3.0, 0), Color(1.0, 0.82, 0.3))
-
-func _make_conveyor(origin: Vector3, steel: Material, rubber: Material, yellow: Material) -> void:
-    var root := Node3D.new()
-    root.position = origin
-    add_child(root)
-    _box(root, Vector3(0, 0.8, 0), Vector3(9.0, 0.18, 1.65), rubber)
-    for x in [-4.2, -3.0, -1.8, -0.6, 0.6, 1.8, 3.0, 4.2]:
-        _cylinder(root, Vector3(x, 0.72, 0), 0.17, 1.85, steel, Vector3(0, 0, PI / 2))
-        _box(root, Vector3(x, 0.35, 0), Vector3(0.12, 0.7, 0.12), steel)
-    for z in [-0.88, 0.88]:
-        _box(root, Vector3(0, 1.0, z), Vector3(9.2, 0.22, 0.12), yellow)
-    _label_3d(root, "CONVOYEUR CV-04", Vector3(0, 1.8, 0), Color(1.0, 0.8, 0.25))
-
-func _make_pipe_run(steel: Material, yellow: Material) -> void:
-    for x in [-10.0, -8.0, 8.0, 10.0]:
-        _cylinder(self, Vector3(x, 5.2, -5.0), 0.12, 10.0, steel, Vector3(0, 0, PI / 2))
-        _cylinder(self, Vector3(x, 5.2, -5.0), 0.18, 0.12, yellow, Vector3(0, 0, PI / 2))
-    _box(self, Vector3(0, 6.0, -8.5), Vector3(20, 0.16, 0.16), steel)
-    _box(self, Vector3(0, 5.7, -8.5), Vector3(20, 0.12, 0.12), yellow)
-
-func _make_guard_rail(parent: Node3D, origin: Vector3, width: float, material: Material) -> void:
-    for x in [-width / 2.0, width / 2.0]:
-        _cylinder(parent, origin + Vector3(x, 0.55, 0), 0.055, 1.1, material)
-    _box(parent, origin + Vector3(0, 1.0, 0), Vector3(width, 0.08, 0.08), material)
-
-func _build_storage_area() -> void:
-    var rack := _material(Color(0.16, 0.22, 0.28), 0.7, 0.42)
-    var shelf := _material(Color(0.68, 0.43, 0.18), 0.25, 0.58)
-    for z in [-7.0, -3.0, 1.0]:
-        for x in [10.5, 13.0]:
-            _box(self, Vector3(x, 2.0, z), Vector3(0.12, 4.0, 0.12), rack)
-            _box(self, Vector3(x, 2.0, z + 1.8), Vector3(0.12, 4.0, 0.12), rack)
-            for y in [0.55, 1.8, 3.05]:
-                _box(self, Vector3(x + 1.25, y, z + 0.9), Vector3(2.6, 0.12, 2.0), shelf)
-            for i in range(3):
-                _box(self, Vector3(x + 0.6 + float(i) * 0.65, 1.1, z + 0.9), Vector3(0.55, 0.95, 0.65), _material(Color(0.34, 0.39, 0.42), 0.3, 0.7))
-
-func _build_safety_markings() -> void:
-    var yellow := _material(Color(1.0, 0.68, 0.05), 0.0, 0.65)
-    var black := _material(Color(0.035, 0.04, 0.045), 0.0, 0.82)
-    for i in range(12):
-        var z := -1.0 + float(i) * 0.24
-        _box(self, Vector3(-2.1, 0.035, z), Vector3(0.18, 0.025, 0.16), yellow if i % 2 == 0 else black)
-        _box(self, Vector3(2.1, 0.035, z), Vector3(0.18, 0.025, 0.16), yellow if i % 2 == 0 else black)
-    for x in [-12.5, 12.5]:
-        _box(self, Vector3(x, 0.04, 4.0), Vector3(0.12, 0.03, 12.0), yellow)
-
-func _build_control_station() -> void:
-    var cabinet := _material(Color(0.18, 0.23, 0.27), 0.65, 0.38)
-    var screen := _material(Color(0.04, 0.24, 0.3), 0.25, 0.18)
-    _box(self, Vector3(0, 1.25, -9.4), Vector3(2.8, 2.5, 0.9), cabinet)
-    _box(self, Vector3(0, 1.65, -8.91), Vector3(1.8, 0.95, 0.05), screen)
-    _label_3d(self, "SUPERVISION", Vector3(0, 2.75, -8.8), Color(0.35, 0.95, 0.85))
-    for x in [-0.75, -0.25, 0.25, 0.75]:
-        _cylinder(self, Vector3(x, 0.95, -8.86), 0.09, 0.12, _material(Color(0.15, 0.85, 0.35), 0.0, 0.25))
+    label.text = machine_name
+    label.position = pos + Vector3(0, 1.5, 0)
+    label.font_size = 34
+    label.modulate = Color(0.85, 0.94, 1)
+    add_child(label)
+    machine_area = Area3D.new()
+    machine_area.position = pos
+    var shape := CollisionShape3D.new()
+    var sphere := SphereShape3D.new()
+    sphere.radius = 3.2
+    shape.shape = sphere
+    machine_area.add_child(shape)
+    add_child(machine_area)
 
 func _build_player() -> void:
     player = get_node("Player") as CharacterBody3D
     var capsule := CapsuleShape3D.new()
-    capsule.radius = 0.36
+    capsule.radius = 0.35
     capsule.height = 1.8
     var collision := player.get_node("CollisionShape3D") as CollisionShape3D
     collision.shape = capsule
-    collision.position = Vector3(0, 0.9, 0)
+    collision.position.y = 0.9
     camera = Camera3D.new()
-    camera.position = Vector3(0, 1.58, 0)
+    camera.position = Vector3(0, 0.65, 0)
     camera.current = true
     player.add_child(camera)
-    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _build_hud() -> void:
     var layer := CanvasLayer.new()
     add_child(layer)
     var panel := PanelContainer.new()
     panel.position = Vector2(18, 18)
-    panel.custom_minimum_size = Vector2(480, 190)
+    panel.custom_minimum_size = Vector2(390, 168)
     layer.add_child(panel)
     var column := VBoxContainer.new()
     panel.add_child(column)
     var title := Label.new()
-    title.text = "IA GAME  /  SIMULATION INDUSTRIELLE"
+    title.text = "IA GAME  /  LABORATOIRE INDUSTRIEL"
     title.add_theme_font_size_override("font_size", 18)
     column.add_child(title)
     status_label = Label.new()
@@ -306,101 +99,49 @@ func _build_hud() -> void:
     result_label = Label.new()
     result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     column.add_child(result_label)
-    objective_label = Label.new()
-    objective_label.text = "OBJECTIF : inspecter les équipements et détecter les risques de panne."
-    objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    column.add_child(objective_label)
     var hint := Label.new()
-    hint.text = "ZQSD/WASD : marcher | Souris : regarder | E : diagnostic IA | F : marche/arrêt | Échap : souris"
-    hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    hint.text = "ZQSD / WASD : déplacer   |   E : analyser la machine"
     column.add_child(hint)
 
-func _input(event: InputEvent) -> void:
-    if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-        player.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
-        camera_pitch = clamp(camera_pitch - event.relative.y * MOUSE_SENSITIVITY, -1.15, 1.15)
-        camera.rotation.x = camera_pitch
-    if event is InputEventKey and event.pressed and event.keycode == KEY_F:
-        _toggle_selected_machine()
-    if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-        Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-    if event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
-        Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
 func _physics_process(delta: float) -> void:
-    elapsed += delta
-    var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
-    var move_direction := (player.transform.basis * Vector3(input_vector.x, 0, input_vector.y)).normalized()
-    player.velocity.x = move_direction.x * PLAYER_SPEED
-    player.velocity.z = move_direction.z * PLAYER_SPEED
+    var direction := Vector3.ZERO
+    direction.x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
+    direction.z = Input.get_action_strength("move_backward") - Input.get_action_strength("move_forward")
+    direction = direction.normalized()
+    player.velocity.x = direction.x * 4.5
+    player.velocity.z = direction.z * 4.5
     if not player.is_on_floor():
-        player.velocity.y -= 22.0 * delta
+        player.velocity.y -= 20.0 * delta
     else:
-        player.velocity.y = 0.0
+        player.velocity.y = 0
     player.move_and_slide()
-    _refresh_machine_selection()
-    if Input.is_action_just_pressed("interact"):
-        _analyse_selected_machine()
+    if Input.is_action_just_pressed("interact") and player.global_position.distance_to(Vector3(0, 1, -3)) < 4.5:
+        _analyse_machine()
 
-func _refresh_machine_selection() -> void:
-    selected_machine = -1
-    var closest_distance := 3.8
-    for i in range(machines.size()):
-        var machine_position: Vector3 = machines[i]["position"]
-        var distance := player.global_position.distance_to(machine_position + Vector3(0, 1.0, 0))
-        if distance < closest_distance:
-            closest_distance = distance
-            selected_machine = i
-    if objective_label:
-        if selected_machine >= 0:
-            objective_label.text = "ÉQUIPEMENT PROCHE : %s (%s) — appuyez sur E pour lancer le diagnostic." % [machines[selected_machine]["name"], machines[selected_machine]["code"]]
-        else:
-            objective_label.text = "OBJECTIF : approchez-vous d'une machine pour l'inspecter."
-
-func _toggle_selected_machine() -> void:
-    if selected_machine < 0:
-        prediction_text = "Approchez-vous d'un équipement pour le démarrer ou l'arrêter."
-        _update_hud()
-        return
-    var machine: Dictionary = machines[selected_machine]
-    machine["running"] = not bool(machine["running"])
-    industrial_life.set_machine_running(selected_machine, bool(machine["running"]))
-    prediction_text = "%s : %s." % [machine["code"], "EN MARCHE" if machine["running"] else "ARRÊTÉ"]
-    _update_hud()
-
-func _analyse_selected_machine() -> void:
-    if selected_machine < 0:
-        prediction_text = "Aucune machine à portée. Approchez-vous d'un équipement."
-        _update_hud()
-        return
-    var machine: Dictionary = machines[selected_machine]
-    prediction_text = "Analyse ML en cours sur %s..." % machine["code"]
+func _analyse_machine() -> void:
+    prediction_text = "Analyse en cours..."
     _update_hud()
     api.request_prediction({
-        "temperature_c": float(machine["temperature"]) + (sin(elapsed * 0.35) * 1.5 if machine["running"] else -12.0),
-        "vibration_mm_s": float(machine["vibration"]) + (abs(sin(elapsed * 0.8)) * 0.25 if machine["running"] else -1.0),
-        "pressure_bar": float(machine["pressure"]) if machine["running"] else 0.0
+        "temperature_c": machine_temperature,
+        "vibration_mm_s": machine_vibration,
+        "pressure_bar": machine_pressure
     })
 
 func _on_prediction_received(result: Dictionary) -> void:
     var predictions: Array = result.get("predictions", [])
     if predictions.is_empty():
-        prediction_text = "Réponse reçue sans prédiction exploitable."
+        prediction_text = "Réponse reçue sans prédiction."
     else:
-        var failed := int(predictions[0]) == 1
-        prediction_text = "ALERTE : risque de panne détecté." if failed else "Équipement déclaré normal par le modèle."
+        var failure := int(predictions[0]) == 1
+        prediction_text = "ALERTE : risque de panne détecté." if failure else "Machine déclarée normale par le modèle."
     _update_hud()
 
 func _on_api_failed(message: String) -> void:
-    prediction_text = "API indisponible : %s. Démarrez le serveur Python." % message
+    prediction_text = "API indisponible : " + message + " | Démarrez le serveur Python."
     _update_hud()
 
 func _update_hud() -> void:
     if status_label:
-        if selected_machine >= 0:
-            var machine: Dictionary = machines[selected_machine]
-            status_label.text = "%s | %s | %.1f °C | %.1f mm/s | %.1f bar" % [machine["code"], machine["name"], machine["temperature"] if machine["running"] else 0.0, machine["vibration"] if machine["running"] else 0.0, machine["pressure"] if machine["running"] else 0.0]
-        else:
-            status_label.text = "%d équipements dans l'usine | Aucun équipement sélectionné" % machines.size()
+        status_label.text = "Machine P-01 | Température: %.1f °C | Vibration: %.1f mm/s | Pression: %.1f bar" % [machine_temperature, machine_vibration, machine_pressure]
     if result_label:
-        result_label.text = "DIAGNOSTIC IA : " + prediction_text
+        result_label.text = "Diagnostic ML : " + prediction_text
