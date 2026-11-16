@@ -29,12 +29,12 @@ API : http://127.0.0.1:8000/docs
 ## Lancer le jeu
 
 1. Ouvrir le dossier `godot_game/` avec Godot 4.
-2. Démarrer le serveur Python et entraîner le modèle.
+2. Démarrer le serveur Python et entraîner le modèle avec les commandes ci-dessus.
 3. Lancer le projet Godot.
 4. Se déplacer avec ZQSD/WASD.
 5. Approcher la presse industrielle et appuyer sur E pour demander une prédiction au modèle Python.
 
-La scène et le dataset fournis sont des éléments de prototype. Le dataset de 500 lignes est **synthétique** et sert uniquement à vérifier le flux technique ; il ne constitue pas une preuve de performance industrielle réelle.
+Le script de démonstration et l'API utilisent le même fichier `artifacts/model.joblib`. Le jeu ne simule pas une prédiction si l'API est indisponible : il affiche une erreur explicite.
 
 ## API
 
@@ -42,6 +42,10 @@ La scène et le dataset fournis sont des éléments de prototype. Le dataset de 
 - `POST /datasets/preview` : diagnostic et aperçu CSV.
 - `POST /models/train?target=failure` : entraînement sur le CSV envoyé en multipart/form-data.
 - `POST /models/predict` : prédiction du modèle entraîné.
+
+## Données de démonstration
+
+Le dataset généré contient 500 lignes **synthétiques**. Il sert uniquement à vérifier le flux logiciel ; il ne constitue pas une preuve de performance industrielle réelle. Pour la compétition, utiliser un dataset industriel documenté, justifier la variable cible et vérifier les fuites de données.
 
 ## DataRobot
 
@@ -52,5 +56,5 @@ Aucun compte DataRobot n'étant disponible à ce stade, le pipeline local scikit
 - Tester l'ouverture et l'exécution du projet avec la version exacte de Godot 4 installée.
 - Tester les appels HTTP depuis le poste de démonstration.
 - Remplacer les données synthétiques par un dataset industriel documenté.
-- Vérifier le choix de la cible, les fuites de données, les métriques et la reproductibilité.
+- Vérifier les métriques, les performances, la reproductibilité et la séparation entraînement/test.
 - Ne jamais communiquer de clé API ou de donnée industrielle confidentielle dans Git.
