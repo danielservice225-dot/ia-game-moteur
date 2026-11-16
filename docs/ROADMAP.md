@@ -71,7 +71,8 @@ Le dataset synthétique actuel sert seulement à tester le circuit logiciel ; il
 - [ ] Mesures de latence du diagnostic ML.
 - [ ] Valider l'exécution hors ligne sur un PC Windows sans connexion Internet.
 - [ ] Confirmer la nouvelle CI avec tests GPU et test HTTP réel Godot → FastAPI → modèle AI4I.
-- [ ] Ajouter un historique automatique des scénarios et des rapports exportables.
+- [x] Historique des entraînements ML et export JSON des rapports par l'API locale.
+- [ ] Ajouter un historique automatique des scénarios de simulation et des rapports de jury consolidés.
 - Scénarios de démonstration reproductibles avec historique des essais.
 - Export d'un rapport et conservation des preuves de test.
 - Validation sur la machine de présentation, pas uniquement dans GitHub Actions.
