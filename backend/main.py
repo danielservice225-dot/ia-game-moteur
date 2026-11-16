@@ -7,7 +7,7 @@ from typing import Annotated
 
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from ml_engine.pipeline import clean_dataframe, load_model, predict_rows, train_model
 

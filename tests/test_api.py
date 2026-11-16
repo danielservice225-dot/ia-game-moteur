@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from fastapi.testclient import TestClient
 
-import backend.main as main
+from backend import main
 from backend.main import app
 
 client = TestClient(app)

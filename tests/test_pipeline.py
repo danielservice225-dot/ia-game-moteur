@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ml_engine.pipeline import clean_dataframe, train_model, load_model, predict_rows
+from ml_engine.pipeline import clean_dataframe, load_model, predict_rows, train_model
 
 
 def sample_data():
