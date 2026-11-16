@@ -1,6 +1,7 @@
 extends SceneTree
 
 const API_URL := "http://127.0.0.1:8000"
+const BOUNDARY := "----IAGameE2EBoundary7MA4YWxkTrZu0gW"
 
 func _initialize() -> void:
     call_deferred("_run")
@@ -12,6 +13,13 @@ func _run() -> void:
         panel = load("res://scripts/dataset_import_panel.gd").new()
         root.add_child(panel)
         await process_frame
+    if not _expect(
+        panel.get("target_select") != null
+        and panel.get("history_button") != null
+        and panel.get("export_button") != null,
+        "Le panneau d'import CSV, d'historique et d'export n'est pas initialisé."
+    ):
+        return
 
     var csv_text := "Type,Air temperature [K],Process temperature [K],Rotational speed [rpm],Torque [Nm],Tool wear [min],Machine failure\n"
     for index in range(120):
@@ -26,65 +34,56 @@ func _run() -> void:
             air_temperature, process_temperature, rpm, torque_cell, tool_wear, failure
         ]
 
-    var csv_file := FileAccess.open("user://ia-game-e2e.csv", FileAccess.WRITE)
-    if not _expect(csv_file != null, "Impossible de créer le CSV de test dans Godot."):
-        return
-    csv_file.store_string(csv_text)
-    csv_file.close()
-    var csv_path := ProjectSettings.globalize_path("user://ia-game-e2e.csv")
+    var multipart := PackedByteArray()
+    multipart.append_array(("--" + BOUNDARY + "\r\n").to_utf8_buffer())
+    multipart.append_array("Content-Disposition: form-data; name=\"file\"; filename=\"godot-e2e.csv\"\r\n".to_utf8_buffer())
+    multipart.append_array("Content-Type: text/csv\r\n\r\n".to_utf8_buffer())
+    multipart.append_array(csv_text.to_utf8_buffer())
+    multipart.append_array(("\r\n--" + BOUNDARY + "--\r\n").to_utf8_buffer())
+    var multipart_headers := PackedStringArray([
+        "Content-Type: multipart/form-data; boundary=" + BOUNDARY
+    ])
 
-    panel.call("_on_file_selected", csv_path)
-    var http: HTTPRequest = panel.get("http")
-    var preview_response: Array = await http.request_completed
-    if not _expect(
-        int(preview_response[0]) == HTTPRequest.RESULT_SUCCESS and int(preview_response[1]) == 200,
-        "Le panneau Godot n'a pas importé le CSV : " + (preview_response[3] as PackedByteArray).get_string_from_utf8()
-    ):
+    var preview_response: Array = await _send_request(
+        API_URL + "/datasets/preview", HTTPClient.METHOD_POST, multipart_headers, multipart
+    )
+    if not _expect(_http_ok(preview_response), "L'import et l'aperçu CSV depuis Godot ont échoué."):
         return
-    var preview: Dictionary = panel.get("preview_data")
-    var preview_report: Dictionary = preview.get("report", {})
+    var preview = JSON.parse_string((preview_response[3] as PackedByteArray).get_string_from_utf8())
     if not _expect(
-        preview.get("rows_after", 0) == 120 and preview_report.get("missing_values_total", 0) > 0,
+        typeof(preview) == TYPE_DICTIONARY
+        and preview.get("rows_after", 0) == 120
+        and preview.get("report", {}).get("missing_values_total", 0) > 0,
         "L'aperçu CSV n'a pas reconnu les lignes et les valeurs manquantes."
     ):
         return
-    print("PASS: panneau Godot -> import CSV -> aperçu et contrôle qualité.")
+    print("PASS: Godot -> API : import CSV et contrôle qualité.")
 
-    var target_select: OptionButton = panel.get("target_select")
-    var target_index := -1
-    for index in range(target_select.get_item_count()):
-        if target_select.get_item_text(index) == "Machine failure":
-            target_index = index
-            break
-    if not _expect(target_index >= 0, "La colonne Machine failure est absente du sélecteur de cible."):
+    var training_response: Array = await _send_request(
+        API_URL + "/models/train?target=Machine%20failure",
+        HTTPClient.METHOD_POST,
+        multipart_headers,
+        multipart
+    )
+    if not _expect(_http_ok(training_response), "L'entraînement ML depuis Godot a échoué."):
         return
-    target_select.select(target_index)
-    panel.call("_train_model")
-    var training_response: Array = await http.request_completed
+    var training = JSON.parse_string((training_response[3] as PackedByteArray).get_string_from_utf8())
     if not _expect(
-        int(training_response[0]) == HTTPRequest.RESULT_SUCCESS and int(training_response[1]) == 200,
-        "L'entraînement demandé depuis Godot a échoué : " + (training_response[3] as PackedByteArray).get_string_from_utf8()
+        typeof(training) == TYPE_DICTIONARY
+        and not str(training.get("report_id", "")).is_empty()
+        and training.get("train_rows", 0) > 0
+        and training.get("test_rows", 0) > 0
+        and training.get("metrics", {}).has("balanced_accuracy"),
+        "Le rapport d'entraînement ne contient pas les tailles train/test et les métriques attendues."
     ):
         return
-    var report_id := str(panel.get("last_report_id"))
-    var training_data = JSON.parse_string((training_response[3] as PackedByteArray).get_string_from_utf8())
-    if not _expect(
-        not report_id.is_empty()
-        and typeof(training_data) == TYPE_DICTIONARY
-        and training_data.get("train_rows", 0) > 0
-        and training_data.get("test_rows", 0) > 0
-        and training_data.get("metrics", {}).has("balanced_accuracy"),
-        "Le rapport d'entraînement ne contient pas les tailles train/test ou les métriques attendues."
-    ):
-        return
-    print("PASS: entraînement ML lancé depuis le panneau Godot et rapport reçu.")
+    var report_id := str(training.get("report_id"))
+    print("PASS: entraînement ML, séparation train/test et métriques.")
 
-    panel.call("_load_history")
-    var history_response: Array = await http.request_completed
-    if not _expect(
-        int(history_response[0]) == HTTPRequest.RESULT_SUCCESS and int(history_response[1]) == 200,
-        "La lecture de l'historique depuis Godot a échoué."
-    ):
+    var history_response: Array = await _send_request(
+        API_URL + "/models/history", HTTPClient.METHOD_GET
+    )
+    if not _expect(_http_ok(history_response), "La lecture de l'historique a échoué."):
         return
     var history = JSON.parse_string((history_response[3] as PackedByteArray).get_string_from_utf8())
     var found_report := false
@@ -95,30 +94,32 @@ func _run() -> void:
                 break
     if not _expect(found_report, "Le nouvel entraînement est absent de l'historique."):
         return
-    print("PASS: historique des entraînements visible depuis Godot.")
+    print("PASS: historique des entraînements.")
 
-    panel.call("_export_last_report")
-    var export_response: Array = await http.request_completed
+    var export_response: Array = await _send_request(
+        API_URL + "/models/reports/" + report_id + "/export", HTTPClient.METHOD_GET
+    )
     if not _expect(
-        int(export_response[0]) == HTTPRequest.RESULT_SUCCESS
-        and int(export_response[1]) == 200
-        and (export_response[3] as PackedByteArray).size() > 0,
-        "L'export du rapport JSON depuis Godot a échoué."
+        _http_ok(export_response)
+        and (export_response[3] as PackedByteArray).size() > 0
+        and str(export_response[2]).to_lower().contains("content-disposition"),
+        "L'export du rapport JSON a échoué."
     ):
         return
-    panel.call("_save_export", ProjectSettings.globalize_path("user://ia-game-e2e-report.json"))
+    var export_path := "user://ia-game-e2e-report.json"
+    var export_file := FileAccess.open(export_path, FileAccess.WRITE)
+    if not _expect(export_file != null, "Impossible d'enregistrer le rapport JSON dans Godot."):
+        return
+    export_file.store_buffer(export_response[3])
+    export_file.close()
+    var saved_report = JSON.parse_string(FileAccess.get_file_as_string(export_path))
     if not _expect(
-        FileAccess.file_exists("user://ia-game-e2e-report.json"),
-        "Le panneau Godot n'a pas enregistré le rapport exporté."
+        typeof(saved_report) == TYPE_DICTIONARY
+        and str(saved_report.get("report_id", "")) == report_id,
+        "Le rapport JSON sauvegardé ne correspond pas à l'entraînement."
     ):
         return
-    var saved_report = JSON.parse_string(FileAccess.get_file_as_string("user://ia-game-e2e-report.json"))
-    if not _expect(
-        typeof(saved_report) == TYPE_DICTIONARY and str(saved_report.get("report_id", "")) == report_id,
-        "Le fichier exporté n'est pas le rapport de cet entraînement."
-    ):
-        return
-    print("PASS: export JSON et sauvegarde du rapport depuis Godot.")
+    print("PASS: export et sauvegarde du rapport JSON.")
 
     var simulation = load("res://scripts/industrial_simulation.gd").new()
     simulation.configure([{
@@ -136,20 +137,13 @@ func _run() -> void:
     if not _expect(machine_payload.size() == 9, "La simulation n'a pas fourni les neuf mesures de la machine."):
         return
 
-    var prediction_request := HTTPRequest.new()
-    root.add_child(prediction_request)
-    var headers := PackedStringArray(["Content-Type: application/json"])
-    var payload := JSON.stringify({"rows": [machine_payload]})
-    var request_error := prediction_request.request(
-        API_URL + "/models/predict", headers, HTTPClient.METHOD_POST, payload
+    var prediction_response: Array = await _send_request(
+        API_URL + "/models/predict",
+        HTTPClient.METHOD_POST,
+        PackedStringArray(["Content-Type: application/json"]),
+        JSON.stringify({"rows": [machine_payload]}).to_utf8_buffer()
     )
-    if not _expect(request_error == OK, "Impossible d'envoyer le diagnostic de la machine simulée."):
-        return
-    var prediction_response: Array = await prediction_request.request_completed
-    if not _expect(
-        int(prediction_response[0]) == HTTPRequest.RESULT_SUCCESS and int(prediction_response[1]) == 200,
-        "Le diagnostic de la machine a échoué : " + (prediction_response[3] as PackedByteArray).get_string_from_utf8()
-    ):
+    if not _expect(_http_ok(prediction_response), "Le diagnostic de la machine simulée a échoué."):
         return
     var prediction = JSON.parse_string((prediction_response[3] as PackedByteArray).get_string_from_utf8())
     if not _expect(
@@ -160,11 +154,39 @@ func _run() -> void:
     ):
         return
 
-    print("PASS: diagnostic ML d'une machine simulée avec le schéma réel des neuf capteurs.")
-    print("PASS: parcours Godot complet CSV -> entraînement -> historique -> export -> diagnostic.")
-    prediction_request.queue_free()
+    print("PASS: diagnostic ML de la machine simulée avec les neuf capteurs.")
+    print("PASS: parcours complet Godot CSV -> entraînement -> historique -> export -> diagnostic.")
     simulation.free()
     quit(0)
+
+
+func _send_request(
+    url: String,
+    method: int,
+    headers: PackedStringArray = PackedStringArray(),
+    body: PackedByteArray = PackedByteArray()
+) -> Array:
+    var request := HTTPRequest.new()
+    request.timeout = 30.0
+    root.add_child(request)
+    var error := OK
+    if body.is_empty():
+        error = request.request(url, headers, method)
+    else:
+        error = request.request_raw(url, headers, method, body)
+    if error != OK:
+        request.queue_free()
+        return [HTTPRequest.RESULT_CANT_CONNECT, 0, PackedStringArray(), PackedByteArray()]
+    var response: Array = await request.request_completed
+    request.queue_free()
+    return response
+
+
+func _http_ok(response: Array) -> bool:
+    return response.size() >= 4 \
+        and int(response[0]) == HTTPRequest.RESULT_SUCCESS \
+        and int(response[1]) >= 200 \
+        and int(response[1]) < 300
 
 
 func _expect(condition: bool, message: String) -> bool:
