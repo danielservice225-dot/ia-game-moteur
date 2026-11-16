@@ -26,9 +26,12 @@ func _run() -> void:
     var headers := PackedStringArray(["Content-Type: application/json"])
     var payload := JSON.stringify({
         "rows": [{
-            "temperature_c": 92.0,
-            "vibration_mm_s": 3.4,
-            "pressure_bar": 4.1
+            "Type": "M",
+            "Air temperature [K]": 300.1,
+            "Process temperature [K]": 311.2,
+            "Rotational speed [rpm]": 1450.0,
+            "Torque [Nm]": 52.0,
+            "Tool wear [min]": 210.0
         }]
     })
     error = request.request(API_URL + "/models/predict", headers, HTTPClient.METHOD_POST, payload)
@@ -48,7 +51,7 @@ func _run() -> void:
         _fail("L'API n'a pas renvoyé exactement une prédiction.")
         return
 
-    print("PASS: Godot a appelé l'API Python et reçu une prédiction ML.")
+    print("PASS: Godot a appelé l'API Python et reçu une prédiction sur les six variables AI4I.")
     request.queue_free()
     quit(0)
 
