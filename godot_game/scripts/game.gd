@@ -13,7 +13,7 @@ var camera: Camera3D
 var camera_pitch := 0.0
 var api: Node
 var industrial_life: Node
-var simulation: Node
+var simulation: Variant
 var status_label: Label
 var result_label: Label
 var objective_label: Label
