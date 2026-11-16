@@ -472,7 +472,7 @@ func _update_performance_display() -> void:
         return
     var memory_mb := float(OS.get_static_memory_usage()) / (1024.0 * 1024.0)
     var fps := Engine.get_frames_per_second()
-    var benchmark_state := "ENREGISTREMENT CSV actif" if benchmark_active else "F6 : démarrer l'enregistrement"
+    var benchmark_state := "CSV matériel automatique | F6 : mesure complémentaire"
     var gpu_profile := adaptive_graphics.get_profile_label() if adaptive_graphics else "Profil GPU en détection"
     performance_label.text = "PERFORMANCES : %d FPS | mémoire Godot : %.1f Mo | %s | %s" % [fps, memory_mb, gpu_profile, benchmark_state]
 
