@@ -6,7 +6,7 @@ from ml_engine.pipeline import train_model
 
 result = train_model(
     pd.read_csv("data/demo_industrial.csv"),
-    target="failure",
+    target="Machine failure",
     # Même chemin que l'API : le jeu Godot consomme ce modèle via /models/predict.
     model_path=Path("artifacts/model.joblib"),
     random_state=42,
