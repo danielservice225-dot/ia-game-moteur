@@ -3,6 +3,7 @@ name: Build IA GAME ML Studio for Windows
 on:
   push:
     branches: [feature/ml-studio-windows, main]
+    tags: ['ml-studio-v*']
     paths:
       - "ml_studio/**"
       - "backend/**"
@@ -14,7 +15,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -50,3 +51,11 @@ jobs:
             installer-output/IA-GAME-ML-Studio-Setup.exe
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/IA-GAME-ML-Studio.exe
+            installer-output/IA-GAME-ML-Studio-Setup.exe
