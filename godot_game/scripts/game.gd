@@ -1,10 +1,9 @@
 extends Node3D
 
-const ApiClient = preload("res://scripts/ia_game_api.gd")
+const SupervisionDashboard = preload("res://scripts/supervision_dashboard.gd")
 const IndustrialLife = preload("res://scripts/industrial_life.gd")
 const IndustrialSimulation = preload("res://scripts/industrial_simulation.gd")
 const GpuAdaptiveManager = preload("res://scripts/gpu_adaptive_manager.gd")
-const DatasetImportPanel = preload("res://scripts/dataset_import_panel.gd")
 
 const FLOOR_SIZE := Vector3(30.0, 0.5, 24.0)
 const PLAYER_SPEED := 5.0
@@ -13,7 +12,6 @@ const MOUSE_SENSITIVITY := 0.0022
 var player: CharacterBody3D
 var camera: Camera3D
 var camera_pitch := 0.0
-var api: Node
 var industrial_life: Node
 var simulation: Variant
 var status_label: Label
@@ -29,7 +27,7 @@ var benchmark_active := false
 var benchmark_elapsed := 0.0
 var benchmark_file: FileAccess
 var adaptive_graphics: Node
-var dataset_import_panel: CanvasLayer
+var dashboard: CanvasLayer
 
 func _ready() -> void:
     _build_factory()
@@ -44,12 +42,7 @@ func _ready() -> void:
     industrial_life.setup(self)
     _build_player()
     _build_hud()
-    api = ApiClient.new()
-    add_child(api)
-    api.prediction_received.connect(_on_prediction_received)
-    api.request_failed.connect(_on_api_failed)
-    dataset_import_panel = DatasetImportPanel.new()
-    add_child(dataset_import_panel)
+    _build_hud()
     _update_hud()
 
 func _build_factory() -> void:
@@ -173,6 +166,7 @@ func _build_lighting() -> void:
         _box(self, Vector3(x, 8.43, 0), Vector3(2.1, 0.06, 0.32), _material(Color(0.82, 0.9, 1.0), 0.0, 0.25))
 
 func _register_machine(machine_name: String, code: String, position: Vector3, temperature: float, vibration: float, pressure: float, machine_type: String = "M", tool_wear_min: float = 0.0) -> void:
+    var machine_index := machines.size()
     machines.append({
         "name": machine_name,
         "code": code,
@@ -182,8 +176,21 @@ func _register_machine(machine_name: String, code: String, position: Vector3, te
         "pressure": pressure,
         "machine_type": machine_type,
         "tool_wear_min": tool_wear_min,
-        "running": true
+        "running": true,
+        "state": "RUNNING",
+        "rpm": 0.0,
+        "torque_nm": 0.0
     })
+    var pick_area := Area3D.new()
+    pick_area.name = "Pick_" + code
+    pick_area.position = position + Vector3(0, 1.2, 0)
+    pick_area.set_meta("machine_index", machine_index)
+    var pick_shape := CollisionShape3D.new()
+    var sphere := SphereShape3D.new()
+    sphere.radius = 2.25
+    pick_shape.shape = sphere
+    pick_area.add_child(pick_shape)
+    add_child(pick_area)
 
 func _build_production_line() -> void:
     var steel := _material(Color(0.36, 0.41, 0.44), 0.82, 0.28)
@@ -298,48 +305,33 @@ func _build_control_station() -> void:
 
 func _build_player() -> void:
     player = get_node("Player") as CharacterBody3D
-    var capsule := CapsuleShape3D.new()
-    capsule.radius = 0.36
-    capsule.height = 1.8
+    player.visible = false
+    player.set_physics_process(false)
     var collision := player.get_node("CollisionShape3D") as CollisionShape3D
-    collision.shape = capsule
-    collision.position = Vector3(0, 0.9, 0)
+    collision.disabled = true
     camera = Camera3D.new()
-    camera.position = Vector3(0, 1.58, 0)
+    camera.position = Vector3(0, 18, 23)
+    add_child(camera)
+    camera.look_at(Vector3(0, 0, 0), Vector3.UP)
     camera.current = true
-    player.add_child(camera)
-    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+    Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _build_hud() -> void:
-    var layer := CanvasLayer.new()
-    add_child(layer)
-    var panel := PanelContainer.new()
-    panel.position = Vector2(18, 18)
-    panel.custom_minimum_size = Vector2(480, 190)
-    layer.add_child(panel)
-    var column := VBoxContainer.new()
-    panel.add_child(column)
-    var title := Label.new()
-    title.text = "IA GAME  /  SIMULATION INDUSTRIELLE"
-    title.add_theme_font_size_override("font_size", 18)
-    column.add_child(title)
-    status_label = Label.new()
-    column.add_child(status_label)
-    result_label = Label.new()
-    result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    column.add_child(result_label)
-    objective_label = Label.new()
-    objective_label.text = "OBJECTIF : inspecter les équipements et détecter les risques de panne."
-    objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    column.add_child(objective_label)
-    var hint := Label.new()
-    hint.text = "ZQSD/WASD : marcher | E : diagnostic ML | F : marche/arrêt | M : maintenance | G : panne test | Échap : souris"
-    hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    column.add_child(hint)
-    performance_label = Label.new()
-    performance_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    column.add_child(performance_label)
-    _update_performance_display()
+    dashboard = SupervisionDashboard.new()
+    add_child(dashboard)
+    dashboard.machine_selected.connect(_on_machine_selected)
+    dashboard.diagnose_requested.connect(_analyse_selected_machine)
+    dashboard.toggle_requested.connect(_toggle_selected_machine)
+    dashboard.maintenance_requested.connect(_maintain_selected_machine)
+    dashboard.fault_requested.connect(_inject_selected_fault)
+    performance_label = dashboard.performance_label
+
+func _on_machine_selected(index: int) -> void:
+    if index < 0 or index >= machines.size():
+        return
+    selected_machine = index
+    prediction_text = "Équipement sélectionné. Consultez ses capteurs et ses commandes."
+    _update_hud()
 
 func _process(delta: float) -> void:
     performance_accumulator += delta
@@ -351,22 +343,26 @@ func _process(delta: float) -> void:
             _write_benchmark_sample()
 
 func _input(event: InputEvent) -> void:
-    if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-        player.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
-        camera_pitch = clamp(camera_pitch - event.relative.y * MOUSE_SENSITIVITY, -1.15, 1.15)
-        camera.rotation.x = camera_pitch
     if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
         _toggle_benchmark()
-    if event is InputEventKey and event.pressed and event.keycode == KEY_F:
-        _toggle_selected_machine()
-    if event is InputEventKey and event.pressed and event.keycode == KEY_M:
-        _maintain_selected_machine()
-    if event is InputEventKey and event.pressed and event.keycode == KEY_G:
-        _inject_selected_fault()
-    if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-        Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-    if event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
-        Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _unhandled_input(event: InputEvent) -> void:
+    if not (event is InputEventMouseButton):
+        return
+    if event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+        return
+    var ray_origin := camera.project_ray_origin(event.position)
+    var ray_direction := camera.project_ray_normal(event.position)
+    var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_origin + ray_direction * 100.0)
+    query.collide_with_areas = true
+    query.collide_with_bodies = false
+    var hit := get_world_3d().direct_space_state.intersect_ray(query)
+    if hit.is_empty():
+        return
+    var collider: Object = hit.get("collider")
+    if collider != null and collider.has_meta("machine_index"):
+        _on_machine_selected(int(collider.get_meta("machine_index")))
+        get_viewport().set_input_as_handled()
 
 func _physics_process(delta: float) -> void:
     elapsed += delta
@@ -377,23 +373,13 @@ func _physics_process(delta: float) -> void:
         machines[i]["temperature"] = snapshot["temperature_c"]
         machines[i]["vibration"] = snapshot["vibration_mm_s"]
         machines[i]["pressure"] = snapshot["pressure_bar"]
+        machines[i]["rpm"] = snapshot["rpm"]
+        machines[i]["torque_nm"] = snapshot["torque_nm"]
+        machines[i]["tool_wear_min"] = snapshot["tool_wear_min"]
         machines[i]["running"] = snapshot["running"]
         machines[i]["state"] = snapshot["state"]
         if previous_running != bool(snapshot["running"]):
             industrial_life.set_machine_running(i, bool(snapshot["running"]))
-    var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
-    var move_direction := (player.transform.basis * Vector3(input_vector.x, 0, input_vector.y)).normalized()
-    player.velocity.x = move_direction.x * PLAYER_SPEED
-    player.velocity.z = move_direction.z * PLAYER_SPEED
-    if not player.is_on_floor():
-        player.velocity.y -= 22.0 * delta
-    else:
-        player.velocity.y = 0.0
-    player.move_and_slide()
-    _refresh_machine_selection()
-    _update_hud()
-    if Input.is_action_just_pressed("interact"):
-        _analyse_selected_machine()
 
 func _refresh_machine_selection() -> void:
     selected_machine = -1
@@ -452,40 +438,9 @@ func _inject_selected_fault() -> void:
 
 func _analyse_selected_machine() -> void:
     if selected_machine < 0:
-        prediction_text = "Aucune machine à portée. Approchez-vous d'un équipement."
-        _update_hud()
-        return
-    var machine: Dictionary = machines[selected_machine]
-    prediction_text = "Analyse ML en cours sur %s..." % machine["code"]
-    _update_hud()
-    api.request_prediction(simulation.get_sensor_payload(selected_machine))
-
-func _on_prediction_received(result: Dictionary) -> void:
-    var predictions: Array = result.get("predictions", [])
-    if predictions.is_empty():
-        prediction_text = "Réponse reçue sans prédiction exploitable."
+        prediction_text = "Sélectionnez d'abord une machine."
     else:
-        var model_info: Dictionary = result.get("model", {})
-        var task := str(model_info.get("task", "classification"))
-        var target := str(model_info.get("target", ""))
-        if task == "classification" and target.to_lower() in ["failure", "machine failure", "machine_failure"]:
-            var failed := int(predictions[0]) == 1
-            prediction_text = "ALERTE : risque de panne détecté." if failed else "Équipement déclaré normal par le modèle."
-        elif task == "classification":
-            prediction_text = "Classe prédite pour %s : %s" % [target, str(predictions[0])]
-        else:
-            prediction_text = "Valeur estimée pour %s : %s" % [target, str(predictions[0])]
-    var performance: Dictionary = result.get("performance", {})
-    if not performance.is_empty():
-            prediction_text += "\nPERFORMANCES ML : %.2f ms | RAM %.1f Mo | CPU %.4f s" % [
-            float(performance.get("latency_ms", 0.0)),
-            float(performance.get("process_rss_after_mb", 0.0)),
-            float(performance.get("cpu_seconds", 0.0))
-        ]
-    _update_hud()
-
-func _on_api_failed(message: String) -> void:
-    prediction_text = "API indisponible : %s. Démarrez le serveur Python." % message
+        prediction_text = "IA DataRobot non configurée : aucun déploiement validé n'est connecté au jeu."
     _update_hud()
 
 func _update_performance_display() -> void:
@@ -558,11 +513,12 @@ func _exit_tree() -> void:
         benchmark_file = null
 
 func _update_hud() -> void:
-    if status_label:
-        if selected_machine >= 0:
-            var machine: Dictionary = machines[selected_machine]
-            status_label.text = "%s | %s | %s | %.1f °C | %.1f mm/s | %.1f bar | %d pièces" % [machine["code"], machine["name"], machine.get("state", "RUNNING"), machine["temperature"], machine["vibration"], machine["pressure"], int(simulation.production_units)]
-        else:
-            status_label.text = "%d équipements dans l'usine | Aucun équipement sélectionné" % machines.size()
-    if result_label:
-        result_label.text = "DIAGNOSTIC IA : " + prediction_text
+    if dashboard:
+        var performance_text := performance_label.text if performance_label else "PERFORMANCES : mesures en cours"
+        dashboard.refresh(
+            machines,
+            selected_machine,
+            "IA DataRobot : " + prediction_text,
+            int(simulation.production_units),
+            performance_text
+        )
