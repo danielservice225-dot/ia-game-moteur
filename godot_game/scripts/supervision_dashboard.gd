@@ -22,7 +22,6 @@ var alert_body: Label
 var console_log: RichTextLabel
 var sensor_summary: Label
 var factory_map: FactoryMap
-var production_summary: Label
 var definitions: Array[Dictionary] = []
 var selected_index := -1
 var status_message := "Simulation prête — sélectionnez un équipement."
