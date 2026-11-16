@@ -9,7 +9,6 @@ signal fault_requested
 var machine_buttons: Array[Button] = []
 var selected_title: Label
 var selected_state: Label
-var sensor_summary: Label
 var diagnosis_summary: Label
 var production_summary: Label
 var performance_label: Label
@@ -21,6 +20,9 @@ var machine_status_label: Label
 var alert_title: Label
 var alert_body: Label
 var console_log: RichTextLabel
+var sensor_summary: Label
+var factory_map: FactoryMap
+var production_summary: Label
 var definitions: Array[Dictionary] = []
 var selected_index := -1
 var status_message := "Simulation prête — sélectionnez un équipement."
@@ -168,13 +170,16 @@ func _build_ui() -> void:
     machine_panel.add_child(health)
 
     # Carte d'alerte sous l'état des machines.
-    var alert := _add_panel(root, Rect2(0, 0, 270, 142), "Alerte équipement")
+    var alert := _add_panel(root, Rect2(0, 0, 270, 220), "Alerte équipement")
     _place_panel(alert, Control.PRESET_TOP_RIGHT, Vector2(-286, 260))
     alert_title = _label("Aucune panne détectée", 16, GREEN, true)
     alert.add_child(alert_title)
     alert_body = _label("Surveillance des équipements active.", 13, WHITE)
     alert_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     alert.add_child(alert_body)
+    sensor_summary = _label("Sélectionnez une machine pour afficher ses capteurs.", 12, MUTED)
+    sensor_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    alert.add_child(sensor_summary)
     var alert_actions := HBoxContainer.new()
     alert.add_child(alert_actions)
     diagnose_button = Button.new()
@@ -246,9 +251,9 @@ func _build_ui() -> void:
     root.add_child(map)
     var map_col := VBoxContainer.new()
     map_col.add_child(_label("Vue d'ensemble", 14, WHITE, true))
-    var map_view := FactoryMap.new()
-    map_view.custom_minimum_size = Vector2(260, 105)
-    map_col.add_child(map_view)
+    factory_map = FactoryMap.new()
+    factory_map.custom_minimum_size = Vector2(260, 105)
+    map_col.add_child(factory_map)
     map.add_child(map_col)
 
 
@@ -293,6 +298,11 @@ func refresh(machine_data: Array[Dictionary], active_index: int, ai_message: Str
         machine_status_label.text = "●  En ligne : %d\n▲  En alerte : %d\n✖  En panne : %d" % [online, alerts, faults]
     if performance_label:
         performance_label.text = performance_text.replace("PERFORMANCES :", "▮  PERFORMANCE :")
+    if factory_map:
+        var states: Array[String] = []
+        for machine in definitions:
+            states.append(str(machine.get("state", "RUNNING")))
+        factory_map.set_machine_states(states)
     if faults > 0:
         for machine in definitions:
             if str(machine.get("state", "")) == "FAULT":
@@ -301,13 +311,16 @@ func refresh(machine_data: Array[Dictionary], active_index: int, ai_message: Str
                 alert_body.text = str(machine.get("name", "Équipement")) + " — arrêt détecté. Sélectionnez la machine pour consulter les capteurs."
                 break
     elif active_index >= 0 and active_index < definitions.size():
-        alert_title.text = str(definitions[active_index].get("code", "Machine")) + " sélectionnée"
+        var selected: Dictionary = definitions[active_index]
+        alert_title.text = str(selected.get("code", "Machine")) + " sélectionnée"
         alert_title.add_theme_color_override("font_color", CYAN)
         alert_body.text = ai_message
+        sensor_summary.text = "TEMP. %.1f °C   |   VIB. %.2f mm/s\nPRESSION %.2f bar   |   RPM %.0f\nCOUPLE %.1f Nm   |   USURE %.0f min" % [float(selected.get("temperature", 0.0)), float(selected.get("vibration", 0.0)), float(selected.get("pressure", 0.0)), float(selected.get("rpm", 0.0)), float(selected.get("torque_nm", 0.0)), float(selected.get("tool_wear_min", 0.0))]
     else:
         alert_title.text = "Aucune panne détectée"
         alert_title.add_theme_color_override("font_color", GREEN)
         alert_body.text = "Surveillance des équipements active."
+        sensor_summary.text = "Sélectionnez une machine pour afficher ses capteurs."
     var valid := active_index >= 0 and active_index < definitions.size()
     diagnose_button.disabled = not valid
     fault_button.disabled = not valid
@@ -316,6 +329,12 @@ func refresh(machine_data: Array[Dictionary], active_index: int, ai_message: Str
 
 
 class FactoryMap extends Control:
+    var machine_states: Array[String] = ["RUNNING", "RUNNING", "RUNNING", "RUNNING"]
+
+    func set_machine_states(states: Array[String]) -> void:
+        machine_states = states.duplicate()
+        queue_redraw()
+
     func _draw() -> void:
         var area := Rect2(Vector2(2, 2), size - Vector2(4, 4))
         draw_rect(area, Color("#102a40"), true)
@@ -327,5 +346,7 @@ class FactoryMap extends Control:
         var machine_points := [Vector2(0.25, 0.35), Vector2(0.43, 0.32), Vector2(0.64, 0.35), Vector2(0.48, 0.72)]
         for i in range(machine_points.size()):
             var p: Vector2 = machine_points[i] * size
-            draw_rect(Rect2(p - Vector2(6, 5), Vector2(12, 10)), Color("#ff4545") if i == 2 else Color("#00df83"), true)
+            var state := machine_states[i] if i < machine_states.size() else "RUNNING"
+            var marker_color := Color("#ff4545") if state == "FAULT" else Color("#ffbd32") if state == "ALERT" else Color("#00df83")
+            draw_rect(Rect2(p - Vector2(6, 5), Vector2(12, 10)), marker_color, true)
         draw_line(Vector2(size.x * 0.1, size.y * 0.84), Vector2(size.x * 0.9, size.y * 0.84), Color("#f5b82e"), 3.0)
