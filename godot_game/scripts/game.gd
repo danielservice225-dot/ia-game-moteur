@@ -21,6 +21,11 @@ var machines: Array[Dictionary] = []
 var selected_machine := -1
 var prediction_text := "Approchez-vous d'une machine et appuyez sur E."
 var elapsed := 0.0
+var performance_label: Label
+var performance_accumulator := 0.0
+var benchmark_active := false
+var benchmark_elapsed := 0.0
+var benchmark_file: FileAccess
 
 func _ready() -> void:
     _build_factory()
@@ -319,12 +324,27 @@ func _build_hud() -> void:
     hint.text = "ZQSD/WASD : marcher | E : diagnostic ML | F : marche/arrêt | M : maintenance | G : panne test | Échap : souris"
     hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     column.add_child(hint)
+    performance_label = Label.new()
+    performance_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    column.add_child(performance_label)
+    _update_performance_display()
+
+func _process(delta: float) -> void:
+    performance_accumulator += delta
+    if performance_accumulator >= 1.0:
+        performance_accumulator = 0.0
+        _update_performance_display()
+        if benchmark_active:
+            benchmark_elapsed += 1.0
+            _write_benchmark_sample()
 
 func _input(event: InputEvent) -> void:
     if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
         player.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
         camera_pitch = clamp(camera_pitch - event.relative.y * MOUSE_SENSITIVITY, -1.15, 1.15)
         camera.rotation.x = camera_pitch
+    if event is InputEventKey and event.pressed and event.keycode == KEY_F6:
+        _toggle_benchmark()
     if event is InputEventKey and event.pressed and event.keycode == KEY_F:
         _toggle_selected_machine()
     if event is InputEventKey and event.pressed and event.keycode == KEY_M:
@@ -440,6 +460,61 @@ func _on_prediction_received(result: Dictionary) -> void:
 func _on_api_failed(message: String) -> void:
     prediction_text = "API indisponible : %s. Démarrez le serveur Python." % message
     _update_hud()
+
+func _update_performance_display() -> void:
+    if not performance_label:
+        return
+    var memory_mb := float(OS.get_static_memory_usage()) / (1024.0 * 1024.0)
+    var fps := Engine.get_frames_per_second()
+    var benchmark_state := "ENREGISTREMENT CSV actif" if benchmark_active else "F6 : démarrer l'enregistrement"
+    performance_label.text = "PERFORMANCES : %d FPS | mémoire Godot : %.1f Mo | temps : %.0f s | %s" % [fps, memory_mb, benchmark_elapsed if benchmark_active else elapsed, benchmark_state]
+
+func _toggle_benchmark() -> void:
+    if benchmark_active:
+        benchmark_active = false
+        if benchmark_file:
+            benchmark_file.close()
+            benchmark_file = null
+        prediction_text = "Mesure terminée : fichier user://ia_game_benchmark.csv enregistré."
+        _update_hud()
+        _update_performance_display()
+        return
+    benchmark_file = FileAccess.open("user://ia_game_benchmark.csv", FileAccess.WRITE)
+    if benchmark_file == null:
+        prediction_text = "Impossible de créer le fichier de mesure dans le dossier utilisateur."
+        _update_hud()
+        return
+    benchmark_file.store_line("elapsed_s,fps,godot_static_memory_mb,machine_code,machine_state,temperature_c,vibration_mm_s,pressure_bar")
+    benchmark_elapsed = 0.0
+    benchmark_active = true
+    prediction_text = "Mesure démarrée : laissez tourner la scène et testez les équipements."
+    _update_hud()
+    _update_performance_display()
+
+func _write_benchmark_sample() -> void:
+    if not benchmark_file:
+        return
+    var memory_mb := float(OS.get_static_memory_usage()) / (1024.0 * 1024.0)
+    var fps := Engine.get_frames_per_second()
+    var code := "none"
+    var state := "none"
+    var temperature := 0.0
+    var vibration := 0.0
+    var pressure := 0.0
+    if selected_machine >= 0 and selected_machine < machines.size():
+        var machine: Dictionary = machines[selected_machine]
+        code = str(machine.get("code", "none"))
+        state = str(machine.get("state", "unknown"))
+        temperature = float(machine.get("temperature", 0.0))
+        vibration = float(machine.get("vibration", 0.0))
+        pressure = float(machine.get("pressure", 0.0))
+    benchmark_file.store_line("%.1f,%d,%.2f,%s,%s,%.2f,%.2f,%.2f" % [benchmark_elapsed, fps, memory_mb, code, state, temperature, vibration, pressure])
+    benchmark_file.flush()
+
+func _exit_tree() -> void:
+    if benchmark_file:
+        benchmark_file.close()
+        benchmark_file = null
 
 func _update_hud() -> void:
     if status_label:
