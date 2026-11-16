@@ -42,7 +42,6 @@ func _ready() -> void:
     industrial_life.setup(self)
     _build_player()
     _build_hud()
-    _build_hud()
     _update_hud()
 
 func _build_factory() -> void:
