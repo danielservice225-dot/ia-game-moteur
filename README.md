@@ -4,11 +4,12 @@ IA GAME est un prototype technique qui relie une simulation industrielle 3D Godo
 
 ## Composants
 
-- **Godot 4** : usine 3D jouable, déplacement, inspection et commandes des équipements.
-- **Renderer Compatibility (OpenGL)** : chemin graphique retenu pour favoriser la compatibilité avec les GPU anciens.
-- **FastAPI** : API locale pour importer les données, entraîner et servir les prédictions.
-- **Pandas / scikit-learn** : nettoyage CSV, prétraitement, Random Forest classification/régression et évaluation sur un jeu de test séparé.
-- **GitHub Actions** : tests Python/Ruff, validation headless Godot, tests du profil GPU et appel HTTP réel de Godot vers l'API ML.
+- **Godot 4** : simulation 3D et tableau de supervision ; sélection des machines par clic, sans déplacement obligatoire.
+- **Interface de supervision** : liste d'équipements, fiche capteurs, état, diagnostic, arrêt/redémarrage, panne de scénario et maintenance.
+- **IA GAME AI Lab** : application Streamlit indépendante consacrée à l'entraînement et à la sélection des modèles dans DataRobot.
+- **DataRobot** : AutoML, comparaison, validation et sélection du modèle ; le jeu ne doit utiliser qu'un déploiement DataRobot déclaré et validé.
+- **FastAPI / scikit-learn** : moteur local conservé pour les tests et expérimentations du pipeline ML ; il n'est plus appelé comme moteur IA du jeu.
+- **GitHub Actions** : tests Python/Ruff et validation headless Godot ; le nouveau parcours de supervision et le connecteur DataRobot doivent encore être couverts par des tests dédiés.
 
 ## Préparer le moteur Python
 
@@ -28,13 +29,13 @@ Documentation interactive de l'API : http://127.0.0.1:8000/docs
 
 ## Lancer le jeu manuellement
 
-1. Démarrer l'API Python avec la commande ci-dessus.
-2. Ouvrir le dossier `godot_game/` dans Godot 4.
-3. Exécuter le projet.
-4. Se déplacer avec ZQSD/WASD.
-5. Approcher un équipement et appuyer sur E pour demander une prédiction au modèle Python.
+1. Ouvrir le dossier `godot_game/` dans Godot 4.
+2. Exécuter le projet.
+3. Cliquer sur une machine dans la scène 3D ou sur sa carte dans la liste des équipements.
+4. Utiliser les boutons de la fiche : diagnostic IA, arrêt/redémarrage, simulation de panne et maintenance.
+5. Aucun déplacement clavier n'est nécessaire pour le parcours normal.
 
-Le jeu contacte `http://127.0.0.1:8000`. Si l'API est indisponible, il affiche une erreur au lieu d'inventer une prédiction.
+La caméra est une caméra de supervision fixe. Le diagnostic IA reste indisponible tant qu'un déploiement DataRobot n'a pas été configuré et validé ; le jeu ne doit pas remplacer silencieusement DataRobot par un modèle local.
 
 ## Préparer puis lancer une démonstration hors ligne (Windows)
 
@@ -63,11 +64,12 @@ Quatre équipements sont présents :
 - convoyeur (CV-04).
 
 Commandes :
-- **F** : démarrer ou arrêter l'équipement sélectionné ;
-- **E** : envoyer les mesures génériques et les six variables AI4I simulées au modèle ML ;
-- **G** : injecter une panne de démonstration ;
-- **M** : effectuer la maintenance ;
-- **F6** : démarrer/arrêter un CSV complémentaire contenant les capteurs génériques et les variables AI4I.
+- **Clic gauche** sur une machine 3D ou sur sa carte : sélectionner l'équipement ;
+- **Diagnostic IA** : action désactivée tant que le déploiement DataRobot n'est pas configuré ;
+- **Arrêter / Redémarrer** : modifier l'état de l'équipement sélectionné ;
+- **Simuler une panne** : injecter un scénario de panne reproductible ;
+- **Effectuer la maintenance** : réinitialiser l'équipement après un arrêt ou une panne ;
+- **F6** : démarrer/arrêter un CSV complémentaire de télémétrie.
 
 Les mesures actuelles sont synthétiques. Elles servent à vérifier le circuit logiciel ; elles ne remplacent pas des données de capteurs industriels réels ni un modèle physique certifié. Les équipements et opérateurs restent des modèles procéduraux simplifiés : les modèles 3D PBR et les personnages humains riggés sont encore à intégrer.
 
@@ -79,11 +81,23 @@ Le projet utilise le renderer Compatibility, une résolution de base de 1280×72
 
 Voir `docs/PERFORMANCE_BENCHMARK.md` et `docs/HARDWARE_PROFILE.md`.
 
-## Importer un dataset et entraîner depuis le jeu
+## Entraînement DataRobot dans l'application indépendante
 
-Le bouton **IMPORTER CSV / ENTRAÎNER L'IA** ouvre un panneau dans l'interface Godot. Il permet de sélectionner un CSV local, d'envoyer un aperçu à l'API, de choisir la colonne cible et de lancer l'entraînement. Les métriques, les variables utilisées, le nombre de lignes d'entraînement/test, le temps CPU consommé, la mémoire RSS du processus et la latence de test sont affichés dans le panneau. Le HUD affiche aussi la latence et les ressources mesurées pour les prédictions. Le panneau inclut des boutons pour consulter les cinq derniers entraînements et exporter le dernier rapport au format JSON.
+L'entraînement ne se fait plus dans le jeu. L'application `ai_lab/` est séparée de Godot et utilise le SDK DataRobot pour créer/réutiliser un Use Case, importer un CSV, créer un projet, lancer AutoML et récupérer le modèle recommandé.
 
-Le fichier est traité localement par le backend Python ; il n'est pas envoyé à un service cloud. Le panneau vérifie que les variables explicatives correspondent aux capteurs réellement disponibles dans la simulation. Il prend en charge les trois mesures génériques (`temperature_c`, `vibration_mm_s`, `pressure_bar`) ainsi que les six variables AI4I (`Type`, `Air temperature [K]`, `Process temperature [K]`, `Rotational speed [rpm]`, `Torque [Nm]`, `Tool wear [min]`). Les colonnes non prises en charge sont signalées avant l'entraînement afin d'éviter de créer un modèle inutilisable par le jeu. Le modèle entraîné remplace le modèle local utilisé par les prochaines prédictions.
+Installation et lancement :
+
+```bash
+source .venv/bin/activate
+python3 -m pip install -r ai_lab/requirements.txt
+export DATAROBOT_ENDPOINT="https://VOTRE-INSTANCE-DATAROBOT"
+export DATAROBOT_API_TOKEN="VOTRE_JETON_PERSONNEL"
+streamlit run ai_lab/app.py
+```
+
+Ne placez jamais le jeton dans Git ou dans le manifeste exporté. Après entraînement, déployez le modèle dans DataRobot puis indiquez son Deployment ID pour produire le manifeste d'intégration. À ce stade, l'application AI Lab est amorcée ; l'authentification, le déploiement et la connexion de prédiction au jeu restent à valider avec un compte DataRobot réel.
+
+Voir [ai_lab/README.md](ai_lab/README.md) et [docs/ARCHITECTURE_V2.md](docs/ARCHITECTURE_V2.md).
 
 ## API
 
