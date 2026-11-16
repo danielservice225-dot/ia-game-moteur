@@ -1,0 +1,16 @@
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+.env
+.env.*
+!.env.example
+artifacts/*
+!artifacts/.gitkeep
+data/*
+!data/.gitkeep
+*.joblib
+*.pkl
+.DS_Store
