@@ -233,13 +233,11 @@ func _build_ui() -> void:
     root.add_child(map)
     var map_col := VBoxContainer.new()
     map_col.add_child(_label("Vue d'ensemble", 14, WHITE, true))
-    var map_view := _FactoryMap.new()
+    var map_view := FactoryMap.new()
     map_view.custom_minimum_size = Vector2(260, 105)
     map_col.add_child(map_view)
     map.add_child(map_col)
 
-func _FactoryMap() -> GDScript:
-    return null
 
 func _log(message: String, color: Color = WHITE) -> void:
     if console_log:
@@ -282,8 +280,6 @@ func refresh(machine_data: Array[Dictionary], active_index: int, ai_message: Str
         machine_status_label.text = "●  En ligne : %d\n▲  En alerte : %d\n✖  En panne : %d" % [online, alerts, faults]
     if performance_label:
         performance_label.text = performance_text.replace("PERFORMANCES :", "▮  PERFORMANCE :")
-    if production_summary:
-        production_summary.text = "PRODUCTION : %d pièces" % production_units
     if faults > 0:
         for machine in definitions:
             if str(machine.get("state", "")) == "FAULT":
@@ -303,5 +299,18 @@ func refresh(machine_data: Array[Dictionary], active_index: int, ai_message: Str
     diagnose_button.disabled = not valid
     fault_button.disabled = not valid
 
-func _FactoryMap_draw() -> void:
-    pass
+
+class FactoryMap extends Control:
+    func _draw() -> void:
+        var area := Rect2(Vector2(2, 2), size - Vector2(4, 4))
+        draw_rect(area, Color("#102a40"), true)
+        draw_rect(area, Color("#2b6385"), false, 1.5)
+        for x in range(1, 7):
+            draw_line(Vector2(size.x * x / 7.0, 5), Vector2(size.x * x / 7.0, size.y - 5), Color(0.18, 0.38, 0.52, 0.55), 1.0)
+        for y in range(1, 4):
+            draw_line(Vector2(5, size.y * y / 4.0), Vector2(size.x - 5, size.y * y / 4.0), Color(0.18, 0.38, 0.52, 0.55), 1.0)
+        var machine_points := [Vector2(0.25, 0.35), Vector2(0.43, 0.32), Vector2(0.64, 0.35), Vector2(0.48, 0.72)]
+        for i in range(machine_points.size()):
+            var p: Vector2 = machine_points[i] * size
+            draw_rect(Rect2(p - Vector2(6, 5), Vector2(12, 10)), Color("#ff4545") if i == 2 else Color("#00df83"), true)
+        draw_line(Vector2(size.x * 0.1, size.y * 0.84), Vector2(size.x * 0.9, size.y * 0.84), Color("#f5b82e"), 3.0)
