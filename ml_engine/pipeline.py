@@ -59,7 +59,7 @@ def clean_dataframe(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             lambda value: value.strip() if isinstance(value, str) else value
         )
         before_blank_cleanup = int(result[column].isna().sum())
-        result[column] = result[column].replace(r"^\\s*$", np.nan, regex=True)
+        result[column] = result[column].replace(r"^\s*$", np.nan, regex=True)
         blank_strings_converted += int(result[column].isna().sum()) - before_blank_cleanup
 
     coerced_columns: list[str] = []

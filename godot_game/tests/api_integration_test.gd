@@ -122,7 +122,7 @@ func _run() -> void:
     print("PASS: export et sauvegarde du rapport JSON.")
 
     var simulation = load("res://scripts/industrial_simulation.gd").new()
-    simulation.configure([{
+    var machine_definitions: Array[Dictionary] = [{
         "name": "Presse hydraulique",
         "code": "P-01",
         "running": true,
@@ -131,7 +131,8 @@ func _run() -> void:
         "pressure": 5.0,
         "machine_type": "M",
         "tool_wear_min": 38.0
-    }])
+    }]
+    simulation.configure(machine_definitions)
     simulation.advance(1.0)
     var machine_payload: Dictionary = simulation.get_sensor_payload(0)
     if not _expect(machine_payload.size() == 9, "La simulation n'a pas fourni les neuf mesures de la machine."):
