@@ -294,6 +294,8 @@ func _on_http_completed(result: int, response_code: int, _headers: PackedStringA
         if items.is_empty():
             _set_status("Aucun entraînement enregistré.")
             return
+        last_report_id = str(items[0].get("report_id", ""))
+        export_button.disabled = last_report_id.is_empty()
         var summaries := PackedStringArray()
         for index in range(mini(items.size(), 5)):
             var item: Dictionary = items[index]
