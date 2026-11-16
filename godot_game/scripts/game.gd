@@ -342,9 +342,10 @@ func _build_robotic_workcell() -> void:
     _label_3d(self, "CELLULE ROBOTISÉE", origin + Vector3(0, 3.35, 0), Color("#ffd05a"))
     # Signalisation lumineuse de sécurité.
     for i in range(3):
-        var beacon := _cylinder(self, origin + Vector3(-1.65 + float(i) * 0.18, 3.08, -1.7), 0.07, 0.16, _material([Color("#e83c32"), Color("#f2bd2c"), Color("#16c879")][i], 0.0, 0.2))
-        beacon.material_override.emission_enabled = true
-        beacon.material_override.emission = beacon.material_override.albedo_color
+        var beacon_material := _material([Color("#e83c32"), Color("#f2bd2c"), Color("#16c879")][i], 0.0, 0.2)
+        beacon_material.emission_enabled = true
+        beacon_material.emission = beacon_material.albedo_color
+        _cylinder(self, origin + Vector3(-1.65 + float(i) * 0.18, 3.08, -1.7), 0.07, 0.16, beacon_material)
 
 func _build_factory_details() -> void:
     var dark := _material(Color("#161e24"), 0.78, 0.34)
