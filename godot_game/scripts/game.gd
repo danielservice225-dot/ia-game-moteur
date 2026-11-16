@@ -3,6 +3,7 @@ extends Node3D
 const ApiClient = preload("res://scripts/ia_game_api.gd")
 const IndustrialLife = preload("res://scripts/industrial_life.gd")
 const IndustrialSimulation = preload("res://scripts/industrial_simulation.gd")
+const GpuAdaptiveManager = preload("res://scripts/gpu_adaptive_manager.gd")
 
 const FLOOR_SIZE := Vector3(30.0, 0.5, 24.0)
 const PLAYER_SPEED := 5.0
@@ -26,9 +27,13 @@ var performance_accumulator := 0.0
 var benchmark_active := false
 var benchmark_elapsed := 0.0
 var benchmark_file: FileAccess
+var adaptive_graphics: Node
 
 func _ready() -> void:
     _build_factory()
+    adaptive_graphics = GpuAdaptiveManager.new()
+    add_child(adaptive_graphics)
+    adaptive_graphics.configure(get_tree().get_nodes_in_group("adaptive_lights"))
     simulation = IndustrialSimulation.new()
     add_child(simulation)
     simulation.configure(machines)
@@ -157,6 +162,7 @@ func _build_lighting() -> void:
         light.light_color = Color(0.78, 0.86, 1.0)
         light.light_energy = 1.5
         light.omni_range = 10.0
+        light.add_to_group("adaptive_lights")
         add_child(light)
         var housing := _material(Color(0.1, 0.12, 0.14), 0.65, 0.4)
         _box(self, Vector3(x, 8.55, 0), Vector3(2.4, 0.18, 0.55), housing)
@@ -467,7 +473,8 @@ func _update_performance_display() -> void:
     var memory_mb := float(OS.get_static_memory_usage()) / (1024.0 * 1024.0)
     var fps := Engine.get_frames_per_second()
     var benchmark_state := "ENREGISTREMENT CSV actif" if benchmark_active else "F6 : démarrer l'enregistrement"
-    performance_label.text = "PERFORMANCES : %d FPS | mémoire Godot : %.1f Mo | temps : %.0f s | %s" % [fps, memory_mb, benchmark_elapsed if benchmark_active else elapsed, benchmark_state]
+    var gpu_profile := adaptive_graphics.get_profile_label() if adaptive_graphics else "Profil GPU en détection"
+    performance_label.text = "PERFORMANCES : %d FPS | mémoire Godot : %.1f Mo | %s | %s" % [fps, memory_mb, gpu_profile, benchmark_state]
 
 func _toggle_benchmark() -> void:
     if benchmark_active:
