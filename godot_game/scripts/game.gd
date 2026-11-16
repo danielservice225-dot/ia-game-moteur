@@ -475,6 +475,13 @@ func _on_prediction_received(result: Dictionary) -> void:
             prediction_text = "Classe prédite pour %s : %s" % [target, str(predictions[0])]
         else:
             prediction_text = "Valeur estimée pour %s : %s" % [target, str(predictions[0])]
+    var performance: Dictionary = result.get("performance", {})
+    if not performance.is_empty():
+        prediction_text += "\\nPERFORMANCES ML : %.2f ms | RAM %.1f Mo | CPU %.4f s" % [
+            float(performance.get("latency_ms", 0.0)),
+            float(performance.get("process_rss_after_mb", 0.0)),
+            float(performance.get("cpu_seconds", 0.0))
+        ]
     _update_hud()
 
 func _on_api_failed(message: String) -> void:
