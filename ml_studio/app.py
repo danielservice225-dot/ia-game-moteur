@@ -3,8 +3,9 @@ import csv, json, os, sys, threading, time
 from pathlib import Path
 from typing import Callable
 import requests, uvicorn
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Qt, Signal
-from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, QHeaderView, QLabel, QMainWindow, QMessageBox, QPushButton, QSpinBox, QDoubleSpinBox, QStackedWidget, QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QListWidget, QListWidgetItem, QProgressBar, QComboBox)
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Qt, Signal, QUrl
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QHBoxLayout, QHeaderView, QLabel, QMainWindow, QMessageBox, QPushButton, QSpinBox, QDoubleSpinBox, QStackedWidget, QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QListWidget, QListWidgetItem, QProgressBar, QComboBox, QStyle, QGroupBox, QFormLayout)
 
 APP_NAME = "IA GAME ML Studio"
 API_URL = "http://127.0.0.1:8765"
@@ -73,10 +74,21 @@ class Studio(QMainWindow):
         brand=QLabel("IA GAME\nML STUDIO"); brand.setObjectName("Brand"); sv.addWidget(brand)
         muted=QLabel("INDUSTRIAL MACHINE LEARNING"); muted.setObjectName("Muted"); sv.addWidget(muted)
         self.nav=QListWidget()
-        for name in ["Vue générale","Datasets CSV","Entraînement ML","Historique","Prédictions"]: self.nav.addItem(QListWidgetItem(name))
+        nav_items = [
+            ("Vue générale", QStyle.StandardPixmap.SP_ComputerIcon),
+            ("Datasets CSV", QStyle.StandardPixmap.SP_FileDialogDetailedView),
+            ("Entraînement ML", QStyle.StandardPixmap.SP_MediaPlay),
+            ("Évaluation", QStyle.StandardPixmap.SP_FileDialogInfoView),
+            ("Historique & rapports", QStyle.StandardPixmap.SP_FileDialogContentsView),
+            ("Prédictions", QStyle.StandardPixmap.SP_ArrowRight),
+            ("Intégration Godot", QStyle.StandardPixmap.SP_DriveNetIcon),
+            ("Paramètres", QStyle.StandardPixmap.SP_FileDialogOptionsView),
+        ]
+        for name, pixmap in nav_items:
+            self.nav.addItem(QListWidgetItem(self.style().standardIcon(pixmap), name))
         sv.addSpacing(20); sv.addWidget(self.nav,1)
         self.pages=QStackedWidget()
-        for builder in [self.dashboard,self.datasets,self.training,self.history,self.predictions]: self.pages.addWidget(builder())
+        for builder in [self.dashboard,self.datasets,self.training,self.evaluation,self.history,self.predictions,self.godot,self.settings]: self.pages.addWidget(builder())
         self.nav.currentRowChanged.connect(self.pages.setCurrentIndex); self.nav.setCurrentRow(0)
         h.addWidget(side); h.addWidget(self.pages,1); self.setCentralWidget(root); self.statusBar().showMessage("Moteur ML local — port 8765")
         self.refresh()
@@ -132,6 +144,57 @@ class Studio(QMainWindow):
         b=QPushButton("Exécuter la prédiction"); b.setObjectName("Primary"); b.clicked.connect(self.predict); v.addWidget(b,alignment=Qt.AlignmentFlag.AlignLeft)
         self.pred_output=QTextEdit(); self.pred_output.setReadOnly(True); v.addWidget(self.pred_output,1)
         return p
+
+    def evaluation(self):
+        p,v=self.shell("Évaluation du modèle","Métriques mesurées sur le jeu de test du dernier entraînement.")
+        self.eval_summary=QLabel("Aucun rapport disponible."); self.eval_summary.setObjectName("Muted"); v.addWidget(self.eval_summary)
+        self.eval_table=QTableWidget(0,2); self.eval_table.setHorizontalHeaderLabels(["Métrique","Valeur"])
+        self.eval_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch); v.addWidget(self.eval_table,1)
+        b=QPushButton("Actualiser l'évaluation"); b.clicked.connect(self.load_evaluation); v.addWidget(b,alignment=Qt.AlignmentFlag.AlignLeft)
+        return p
+
+    def godot(self):
+        p,v=self.shell("Intégration Godot","Diagnostic de la connexion au moteur ML local et accès au projet Godot.")
+        box=QGroupBox("État du moteur ML"); form=QFormLayout(box)
+        self.godot_api=QLabel("Non vérifié"); self.godot_artifacts=QLabel(os.environ.get("IA_GAME_ARTIFACT_DIR",str(Path.home()/".local/share/ia-game-ml-studio/artifacts")))
+        self.godot_artifacts.setWordWrap(True); form.addRow("API",self.godot_api); form.addRow("Dossier des modèles",self.godot_artifacts); v.addWidget(box)
+        row=QHBoxLayout(); check=QPushButton("Tester la connexion"); check.clicked.connect(self.check_godot_api); row.addWidget(check)
+        openp=QPushButton("Ouvrir le projet Godot"); openp.clicked.connect(self.open_godot_project); row.addWidget(openp); row.addStretch(); v.addLayout(row)
+        note=QTextEdit(); note.setReadOnly(True); note.setPlainText("L'API ML écoute sur 127.0.0.1:8765. Le jeu doit envoyer les mesures capteurs à /models/predict.\n\nLe jeu et ML Studio doivent partager le même dossier d'artefacts pour utiliser le même modèle. Cette liaison doit encore être validée dans le build Windows de Godot."); v.addWidget(note,1)
+        return p
+
+    def settings(self):
+        p,v=self.shell("Paramètres","Informations sur l'environnement réellement utilisé.")
+        box=QGroupBox("Configuration locale"); form=QFormLayout(box)
+        form.addRow("API",QLabel(API_URL)); form.addRow("Python",QLabel(sys.version.split()[0])); form.addRow("Plateforme",QLabel(sys.platform))
+        path=QLabel(os.environ.get("IA_GAME_ARTIFACT_DIR",str(Path.home()/".local/share/ia-game-ml-studio/artifacts"))); path.setWordWrap(True); form.addRow("Artefacts",path); v.addWidget(box)
+        b=QPushButton("Ouvrir le dossier des modèles"); b.clicked.connect(self.open_artifact_folder); v.addWidget(b,alignment=Qt.AlignmentFlag.AlignLeft); v.addStretch()
+        return p
+
+    def load_evaluation(self):
+        def done(data):
+            items=data.get("items",[])
+            if not items: self.eval_summary.setText("Aucun entraînement enregistré."); self.eval_table.setRowCount(0); return
+            item=items[0]; metrics=item.get("metrics",{})
+            self.eval_summary.setText(f"Dernier modèle : {item.get('source_filename','—')} | cible : {item.get('target','—')} | test : {item.get('test_rows','—')} lignes")
+            self.eval_table.setRowCount(len(metrics))
+            for i,(key,value) in enumerate(metrics.items()):
+                self.eval_table.setItem(i,0,QTableWidgetItem(str(key)))
+                self.eval_table.setItem(i,1,QTableWidgetItem(json.dumps(value,ensure_ascii=False) if isinstance(value,(dict,list)) else str(value)))
+        self.work(lambda:self.get("/models/history"),done)
+
+    def check_godot_api(self):
+        def done(data): self.godot_api.setText("Connectée — modèle présent" if data.get("model_available") else "Connectée — aucun modèle entraîné")
+        self.work(lambda:self.get("/health"),done)
+
+    def open_godot_project(self):
+        path,_=QFileDialog.getOpenFileName(self,"Sélectionner project.godot","","Projet Godot (project.godot)")
+        if path: QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).parent)))
+
+    def open_artifact_folder(self):
+        path=Path(os.environ.get("IA_GAME_ARTIFACT_DIR",str(Path.home()/".local/share/ia-game-ml-studio/artifacts")))
+        path.mkdir(parents=True,exist_ok=True); QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+
     def work(self,fn,success,error=None):
         w=Worker(fn); w.signals.done.connect(success); w.signals.error.connect(error or self.error); self.pool.start(w)
     def error(self,msg): QMessageBox.critical(self,APP_NAME,msg)
@@ -143,6 +206,7 @@ class Studio(QMainWindow):
             health,history=pair; self.api_card.value.setText("En ligne" if health.get("status")=="ok" else "Erreur")
             self.model_card.value.setText("Disponible" if health.get("model_available") else "Absent")
             self.count_card.value.setText(str(history.get("count",0)))
+            self.load_evaluation()
         self.work(task,done)
     def choose_csv(self):
         path,_=QFileDialog.getOpenFileName(self,"Sélectionner un dataset industriel","","CSV (*.csv)")
