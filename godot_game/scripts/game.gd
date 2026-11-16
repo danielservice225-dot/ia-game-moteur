@@ -144,7 +144,7 @@ func _build_lighting() -> void:
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-58, -25, 0)
     sun.light_energy = 1.15
-    sun.shadow_enabled = true
+    sun.shadow_enabled = false
     add_child(sun)
     for x in [-10.0, -3.5, 3.5, 10.0]:
         var light := OmniLight3D.new()
