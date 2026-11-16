@@ -1,78 +1,105 @@
 # IA GAME — Simulation industrielle et Machine Learning
 
-IA GAME est un prototype technique qui relie une simulation 3D Godot à un moteur ML Python. Les fonctions doivent être exécutées et vérifiées dans l'environnement cible avant toute présentation comme produit final.
+IA GAME est un prototype technique qui relie une simulation industrielle 3D Godot à un moteur de Machine Learning Python. Les fonctions doivent être exécutées et vérifiées dans l'environnement cible avant toute présentation comme produit final.
 
 ## Composants
 
-- **Godot 4** : scène 3D industrielle jouable, déplacement clavier et interaction avec une machine.
+- **Godot 4** : usine 3D jouable, déplacement, inspection et commandes des équipements.
+- **Renderer Compatibility (OpenGL)** : chemin graphique retenu pour favoriser la compatibilité avec les GPU anciens.
 - **FastAPI** : API locale pour importer les données, entraîner et servir les prédictions.
-- **Pandas / scikit-learn** : nettoyage CSV, pipeline de prétraitement, Random Forest classification/régression et évaluation sur jeu de test séparé.
-- **GitHub Actions** : tests Python/Ruff et validation headless du projet Godot 4.
+- **Pandas / scikit-learn** : nettoyage CSV, prétraitement, Random Forest classification/régression et évaluation sur un jeu de test séparé.
+- **GitHub Actions** : tests Python/Ruff, validation headless Godot, tests du profil GPU et appel HTTP réel de Godot vers l'API ML.
 
-## Démarrer le moteur Python
+## Préparer le moteur Python
 
-Python 3.10+ recommandé.
+Python 3.10+ est requis.
 
-```bash
-python -m venv .venv
-# Linux/macOS
-source .venv/bin/activate
-# Windows PowerShell : .venv\Scripts\Activate.ps1
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -e ".[dev]"
 python scripts/generate_demo_dataset.py
 python scripts/demo_train.py
-uvicorn backend.main:app --reload
+uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-API : http://127.0.0.1:8000/docs
+Documentation interactive de l'API : http://127.0.0.1:8000/docs
 
-## Lancer le jeu
+## Lancer le jeu manuellement
 
-1. Ouvrir le dossier `godot_game/` avec Godot 4.
-2. Démarrer le serveur Python et entraîner le modèle avec les commandes ci-dessus.
-3. Lancer le projet Godot.
+1. Démarrer l'API Python avec la commande ci-dessus.
+2. Ouvrir le dossier `godot_game/` dans Godot 4.
+3. Exécuter le projet.
 4. Se déplacer avec ZQSD/WASD.
-5. Approcher la presse industrielle et appuyer sur E pour demander une prédiction au modèle Python.
+5. Approcher un équipement et appuyer sur E pour demander une prédiction au modèle Python.
 
-Le script de démonstration et l'API utilisent le même fichier `artifacts/model.joblib`. Le jeu ne simule pas une prédiction si l'API est indisponible : il affiche une erreur explicite.
+Le jeu contacte `http://127.0.0.1:8000`. Si l'API est indisponible, il affiche une erreur au lieu d'inventer une prédiction.
 
-## Simulation industrielle Godot
+## Préparer puis lancer une démonstration hors ligne (Windows)
 
-La branche de travail ajoute un premier modèle d'états et de capteurs pour quatre équipements :
+La préparation nécessite une connexion Internet pour installer les dépendances Python une première fois. Après cette préparation, le lancement du jeu et de l'API se fait localement, sans service cloud.
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\prepare_offline.ps1
+.\scripts\run_offline.ps1
+```
+
+Si Godot n'est pas dans le PATH :
+
+```powershell
+.\scripts\run_offline.ps1 -GodotExe "C:\Chemin\vers\Godot.exe"
+```
+
+Le script de préparation génère le dataset de démonstration et entraîne `artifacts/model.joblib`. Le script hors ligne démarre l'API sur la boucle locale, vérifie sa disponibilité, lance Godot puis arrête l'API à la fermeture du jeu. Il faut conserver le dossier `.venv/`, le modèle `artifacts/model.joblib` et le projet Godot sur le PC de démonstration.
+
+## Simulation industrielle
+
+Quatre équipements sont présents :
 - presse hydraulique (P-01) ;
 - pompe centrifuge (M-02) ;
 - compresseur (C-03) ;
 - convoyeur (CV-04).
 
-Commandes en jeu :
+Commandes :
 - **F** : démarrer ou arrêter l'équipement sélectionné ;
-- **E** : envoyer ses trois mesures (température, vibration, pression) au modèle Python ;
-- **G** : injecter une panne de démonstration sur l'équipement sélectionné ;
-- **M** : effectuer la maintenance et réinitialiser ses capteurs.
+- **E** : envoyer température, vibration et pression au modèle ML ;
+- **G** : injecter une panne de démonstration ;
+- **M** : effectuer la maintenance ;
+- **F6** : démarrer/arrêter un CSV complémentaire de mesures.
 
-La simulation fait évoluer les mesures et le compteur de production du convoyeur. Les mesures générées sont synthétiques et servent à valider le flux logiciel ; elles ne remplacent pas des données de capteurs industriels réels ni un modèle physique certifié. La maintenance est une mécanique de démonstration.
+Les mesures actuelles sont synthétiques. Elles servent à vérifier le circuit logiciel ; elles ne remplacent pas des données de capteurs industriels réels ni un modèle physique certifié. Les équipements et opérateurs restent des modèles procéduraux simplifiés : les modèles 3D PBR et les personnages humains riggés sont encore à intégrer.
 
-Le rendu utilise le renderer Forward+ et des effets d'occlusion ambiante. Les équipements et opérateurs restent actuellement des modèles procéduraux simplifiés. Pour atteindre un rendu photoréaliste, il faudra importer des modèles 3D PBR de qualité, des personnages riggés et des animations licenciés correctement.
+## Adaptation graphique et mesures
+
+Le projet utilise le renderer Compatibility, une résolution de base de 1280×720 et un profil graphique initial choisi selon le nom du GPU. Les FPS observés peuvent réduire temporairement les éclairages ponctuels ; le retour à la normale restaure le profil initial plutôt que d'activer toutes les lumières.
+
+À chaque lancement, le jeu écrit automatiquement `user://ia_game_hardware_benchmark.csv`. Le fichier contient les informations GPU, moteur de rendu, résolution, FPS et mémoire statique suivie par Godot. Cette valeur n'est pas la RAM totale du processus. Les mesures de performance réelles ne sont disponibles qu'après exécution sur l'ordinateur cible.
+
+Voir `docs/PERFORMANCE_BENCHMARK.md` et `docs/HARDWARE_PROFILE.md`.
 
 ## API
 
-- `GET /health` : état du service.
+- `GET /health` : état du service et présence du modèle.
 - `POST /datasets/preview` : diagnostic et aperçu CSV.
-- `POST /models/train?target=failure` : entraînement sur le CSV envoyé en multipart/form-data.
-- `POST /models/predict` : prédiction du modèle entraîné.
+- `POST /models/train?target=failure` : entraînement sur un CSV envoyé en multipart/form-data.
+- `POST /models/predict` : prédiction avec le modèle enregistré.
 
-## Données de démonstration
+## Données et limites scientifiques
 
-Le dataset généré contient 500 lignes **synthétiques**. Il sert uniquement à vérifier le flux logiciel ; il ne constitue pas une preuve de performance industrielle réelle. Pour la compétition, utiliser un dataset industriel documenté, justifier la variable cible et vérifier les fuites de données.
+Le script de démonstration génère 500 lignes synthétiques. Il sert uniquement à vérifier l'entraînement et l'intégration. Ses métriques ne constituent pas une preuve de performance industrielle. Pour la compétition, utiliser un dataset industriel documenté, justifier la variable cible, vérifier les unités et les fuites de données, puis conserver les rapports d'entraînement et les preuves de test.
 
-## DataRobot
+Aucune intégration DataRobot n'est déclarée comme active. Le moteur utilisable dans ce dépôt est le pipeline local scikit-learn.
 
-Aucun compte DataRobot n'étant disponible à ce stade, le pipeline local scikit-learn est le moteur réellement utilisable. DataRobot n'est pas présenté comme connecté. Une intégration réelle nécessitera un compte, un endpoint et un jeton API configurés en secrets d'environnement, puis des tests d'authentification et d'entraînement.
+## Validation avant compétition
 
-## Limites avant compétition
-
-- Tester l'ouverture et l'exécution du projet avec la version exacte de Godot 4 installée.
-- Tester les appels HTTP depuis le poste de démonstration.
+- Exécuter les tests Python et Godot de GitHub Actions.
+- Lancer le jeu sur le HP EliteBook 8570p et conserver son CSV de télémétrie réel.
+- Vérifier les FPS dans les zones de l'usine et pendant les pannes.
+- Vérifier l'appel Godot → FastAPI → modèle entraîné sur la machine de présentation.
 - Remplacer les données synthétiques par un dataset industriel documenté.
-- Vérifier les métriques, les performances, la reproductibilité et la séparation entraînement/test.
-- Ne jamais communiquer de clé API ou de donnée industrielle confidentielle dans Git.
+- Importer des assets 3D et personnages riggés avec licences vérifiées.
+- Répéter le protocole du jury et conserver les résultats.
+
+Ne pas annoncer une fonction comme terminée sans test sur l'environnement concerné. Ne jamais inclure de jetons, mots de passe ou données industrielles confidentielles dans Git.
