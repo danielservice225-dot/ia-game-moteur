@@ -83,14 +83,14 @@ Voir `docs/PERFORMANCE_BENCHMARK.md` et `docs/HARDWARE_PROFILE.md`.
 
 Le bouton **IMPORTER CSV / ENTRAÎNER L'IA** ouvre un panneau dans l'interface Godot. Il permet de sélectionner un CSV local, d'envoyer un aperçu à l'API, de choisir la colonne cible et de lancer l'entraînement. Les métriques et le nombre de lignes d'entraînement/test sont ensuite affichés dans le panneau.
 
-Le fichier est traité localement par le backend Python ; il n'est pas envoyé à un service cloud. Le panneau vérifie que les variables explicatives correspondent aux capteurs réellement disponibles dans la simulation. Il prend en charge les trois mesures génériques (`temperature_c`, `vibration_mm_s`, `pressure_bar`) ainsi que les six variables AI4I (`Type`, `Air temperature [K]`, `Process temperature [K]`, `Rotational speed [rpm]`, `Torque [Nm]`, `Tool wear [min]`). Les colonnes non prises en charge sont signalées avant l'entraînement afin d'éviter de créer un modèle inutilisable par le jeu. Le modèle entraîné remplace le modèle local utilisé par les prochaines prédictions.
+Le panneau Godot permet également d'afficher l'historique et d'enregistrer le dernier rapport JSON sur le poste. Le fichier est traité localement par le backend Python ; il n'est pas envoyé à un service cloud. Le panneau vérifie que les variables explicatives correspondent aux capteurs réellement disponibles dans la simulation. Il prend en charge les trois mesures génériques (`temperature_c`, `vibration_mm_s`, `pressure_bar`) ainsi que les six variables AI4I (`Type`, `Air temperature [K]`, `Process temperature [K]`, `Rotational speed [rpm]`, `Torque [Nm]`, `Tool wear [min]`). Les colonnes non prises en charge sont signalées avant l'entraînement afin d'éviter de créer un modèle inutilisable par le jeu. Le modèle entraîné remplace le modèle local utilisé par les prochaines prédictions.
 
 ## API
 
 - `GET /health` : état du service et présence du modèle.
 - `POST /datasets/preview` : diagnostic et aperçu CSV.
 - `POST /models/train?target=failure` : entraînement sur un CSV envoyé en multipart/form-data.
-- `POST /models/predict` : prédiction avec le modèle enregistré.
+- `POST /models/predict` : prédiction avec le modèle enregistré et mesures de latence, CPU et RAM du processus.\n- `GET /models/history` : historique des 100 derniers entraînements.\n- `GET /models/reports/{report_id}` : rapport complet d'un entraînement.\n- `GET /models/reports/{report_id}/export` : téléchargement du rapport JSON.
 
 ## Données et limites scientifiques
 
