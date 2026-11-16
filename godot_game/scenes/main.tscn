@@ -11,6 +11,14 @@ ambient_light_energy = 0.75
 tonemap_mode = 2
 glow_enabled = true
 glow_intensity = 0.25
+ssao_enabled = true
+ssao_radius = 2.0
+ssao_intensity = 1.25
+ssil_enabled = true
+ssil_radius = 5.0
+ssil_intensity = 0.8
+fog_enabled = true
+fog_density = 0.0015
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_game")

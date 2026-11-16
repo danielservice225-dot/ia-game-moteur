@@ -2,6 +2,7 @@ extends Node3D
 
 const ApiClient = preload("res://scripts/ia_game_api.gd")
 const IndustrialLife = preload("res://scripts/industrial_life.gd")
+const IndustrialSimulation = preload("res://scripts/industrial_simulation.gd")
 
 const FLOOR_SIZE := Vector3(30.0, 0.5, 24.0)
 const PLAYER_SPEED := 5.0
@@ -12,6 +13,7 @@ var camera: Camera3D
 var camera_pitch := 0.0
 var api: Node
 var industrial_life: Node
+var simulation: Node
 var status_label: Label
 var result_label: Label
 var objective_label: Label
@@ -22,6 +24,9 @@ var elapsed := 0.0
 
 func _ready() -> void:
     _build_factory()
+    simulation = IndustrialSimulation.new()
+    add_child(simulation)
+    simulation.configure(machines)
     industrial_life = IndustrialLife.new()
     add_child(industrial_life)
     industrial_life.setup(self)
@@ -311,7 +316,7 @@ func _build_hud() -> void:
     objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     column.add_child(objective_label)
     var hint := Label.new()
-    hint.text = "ZQSD/WASD : marcher | Souris : regarder | E : diagnostic IA | F : marche/arrêt | Échap : souris"
+    hint.text = "ZQSD/WASD : marcher | E : diagnostic ML | F : marche/arrêt | M : maintenance | G : panne test | Échap : souris"
     hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     column.add_child(hint)
 
@@ -322,6 +327,10 @@ func _input(event: InputEvent) -> void:
         camera.rotation.x = camera_pitch
     if event is InputEventKey and event.pressed and event.keycode == KEY_F:
         _toggle_selected_machine()
+    if event is InputEventKey and event.pressed and event.keycode == KEY_M:
+        _maintain_selected_machine()
+    if event is InputEventKey and event.pressed and event.keycode == KEY_G:
+        _inject_selected_fault()
     if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
         Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
     if event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
@@ -329,6 +338,17 @@ func _input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
     elapsed += delta
+    simulation.advance(delta)
+    for i in range(machines.size()):
+        var previous_running := bool(machines[i]["running"])
+        var snapshot: Dictionary = simulation.get_snapshot(i)
+        machines[i]["temperature"] = snapshot["temperature_c"]
+        machines[i]["vibration"] = snapshot["vibration_mm_s"]
+        machines[i]["pressure"] = snapshot["pressure_bar"]
+        machines[i]["running"] = snapshot["running"]
+        machines[i]["state"] = snapshot["state"]
+        if previous_running != bool(snapshot["running"]):
+            industrial_life.set_machine_running(i, bool(snapshot["running"]))
     var input_vector := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
     var move_direction := (player.transform.basis * Vector3(input_vector.x, 0, input_vector.y)).normalized()
     player.velocity.x = move_direction.x * PLAYER_SPEED
@@ -339,6 +359,7 @@ func _physics_process(delta: float) -> void:
         player.velocity.y = 0.0
     player.move_and_slide()
     _refresh_machine_selection()
+    _update_hud()
     if Input.is_action_just_pressed("interact"):
         _analyse_selected_machine()
 
@@ -363,9 +384,38 @@ func _toggle_selected_machine() -> void:
         _update_hud()
         return
     var machine: Dictionary = machines[selected_machine]
-    machine["running"] = not bool(machine["running"])
-    industrial_life.set_machine_running(selected_machine, bool(machine["running"]))
-    prediction_text = "%s : %s." % [machine["code"], "EN MARCHE" if machine["running"] else "ARRÊTÉ"]
+    var running: bool = simulation.toggle_machine(selected_machine)
+    machine["running"] = running
+    machine["state"] = simulation.get_snapshot(selected_machine)["state"]
+    industrial_life.set_machine_running(selected_machine, running)
+    prediction_text = "%s : %s." % [machine["code"], "EN MARCHE" if running else str(machine["state"])]
+    _update_hud()
+
+func _maintain_selected_machine() -> void:
+    if selected_machine < 0:
+        prediction_text = "Approchez-vous d'une machine avant la maintenance."
+        _update_hud()
+        return
+    var repaired: bool = simulation.perform_maintenance(selected_machine)
+    if repaired:
+        machines[selected_machine]["running"] = true
+        machines[selected_machine]["state"] = "RUNNING"
+        industrial_life.set_machine_running(selected_machine, true)
+        prediction_text = "%s : maintenance terminée, capteurs réinitialisés." % machines[selected_machine]["code"]
+    else:
+        prediction_text = "Maintenance non nécessaire : arrêtez ou diagnostiquez l'équipement."
+    _update_hud()
+
+func _inject_selected_fault() -> void:
+    if selected_machine < 0:
+        prediction_text = "Approchez-vous d'une machine pour simuler une panne."
+        _update_hud()
+        return
+    simulation.inject_fault(selected_machine)
+    machines[selected_machine]["running"] = false
+    machines[selected_machine]["state"] = "FAULT"
+    industrial_life.set_machine_running(selected_machine, false)
+    prediction_text = "%s : panne simulée, valeurs capteurs dégradées." % machines[selected_machine]["code"]
     _update_hud()
 
 func _analyse_selected_machine() -> void:
@@ -376,11 +426,7 @@ func _analyse_selected_machine() -> void:
     var machine: Dictionary = machines[selected_machine]
     prediction_text = "Analyse ML en cours sur %s..." % machine["code"]
     _update_hud()
-    api.request_prediction({
-        "temperature_c": float(machine["temperature"]) + (sin(elapsed * 0.35) * 1.5 if machine["running"] else -12.0),
-        "vibration_mm_s": float(machine["vibration"]) + (abs(sin(elapsed * 0.8)) * 0.25 if machine["running"] else -1.0),
-        "pressure_bar": float(machine["pressure"]) if machine["running"] else 0.0
-    })
+    api.request_prediction(simulation.get_sensor_payload(selected_machine))
 
 func _on_prediction_received(result: Dictionary) -> void:
     var predictions: Array = result.get("predictions", [])
@@ -399,7 +445,7 @@ func _update_hud() -> void:
     if status_label:
         if selected_machine >= 0:
             var machine: Dictionary = machines[selected_machine]
-            status_label.text = "%s | %s | %.1f °C | %.1f mm/s | %.1f bar" % [machine["code"], machine["name"], machine["temperature"] if machine["running"] else 0.0, machine["vibration"] if machine["running"] else 0.0, machine["pressure"] if machine["running"] else 0.0]
+            status_label.text = "%s | %s | %s | %.1f °C | %.1f mm/s | %.1f bar | %d pièces" % [machine["code"], machine["name"], machine.get("state", "RUNNING"), machine["temperature"], machine["vibration"], machine["pressure"], int(simulation.production_units)]
         else:
             status_label.text = "%d équipements dans l'usine | Aucun équipement sélectionné" % machines.size()
     if result_label:
