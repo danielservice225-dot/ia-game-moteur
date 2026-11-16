@@ -4,6 +4,9 @@ config_version=5
 config/name="IA GAME - Simulation industrielle"
 run/main_scene="res://scenes/main.tscn"
 
+[autoload]
+DatasetImportPanel="*res://scripts/dataset_import_panel.gd"
+
 [display]
 window/size/viewport_width=1280
 window/size/viewport_height=720
