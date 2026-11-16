@@ -155,6 +155,10 @@ if st.button(
         metric_name = project.metric
         metrics = recommendation.metrics
         validation_score = metrics.get(metric_name, {}).get("validation")
+        try:
+            feature_impact = recommendation.get_feature_impact()
+        except Exception:
+            feature_impact = []
         comparison = []
         for candidate in dr.Model.list(project.id):
             candidate_metrics = candidate.metrics.get(metric_name, {})
@@ -178,6 +182,7 @@ if st.button(
             "features": [str(column) for column in training_frame.columns if column != target],
             "excluded_columns": [str(column) for column in excluded_columns],
             "model_comparison": comparison,
+            "feature_impact": feature_impact,
             "source_filename": uploaded.name,
             "trained_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -200,6 +205,9 @@ if result:
         st.markdown("**Comparaison des modèles DataRobot**")
         st.dataframe(pd.DataFrame(result["model_comparison"]), use_container_width=True)
     st.caption("Colonnes exclues : " + (", ".join(result.get("excluded_columns", [])) or "aucune"))
+    if result.get("feature_impact"):
+        st.markdown("**Importance des variables — DataRobot**")
+        st.dataframe(pd.DataFrame(result["feature_impact"]), use_container_width=True)
     st.code(
         f"Use Case : {result['use_case_id']}\n"
         f"Dataset : {result['dataset_id']}\n"
