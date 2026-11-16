@@ -8,8 +8,8 @@ Application Streamlit indépendante consacrée à l'entraînement et à la séle
 - Afficher un aperçu et les valeurs manquantes.
 - Réutiliser un Use Case DataRobot ou en créer un.
 - Créer un dataset et un projet DataRobot.
-- Lancer AutoML Quick et attendre la fin de l'entraînement.
-- Récupérer le modèle recommandé et sa métrique de validation.
+- Lancer AutoML Quick ou Comprehensive et attendre la fin de l'entraînement.
+- Comparer les modèles, afficher l'importance des variables et récupérer le modèle recommandé.
 - Exporter un manifeste versionné destiné à préparer l'intégration au jeu.
 
 Cette application ne fabrique pas de modèle local de substitution. Le manifeste n'est pas un modèle exécutable et ne prouve pas qu'un déploiement existe. Le jeu ne doit utiliser un modèle qu'après déploiement DataRobot et validation du contrat de prédiction.
