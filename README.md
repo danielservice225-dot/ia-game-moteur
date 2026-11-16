@@ -7,6 +7,7 @@ IA GAME est un prototype technique qui relie une simulation industrielle 3D Godo
 - **Godot 4** : simulation 3D et tableau de supervision ; sélection des machines par clic, sans déplacement obligatoire.
 - **Interface de supervision** : liste d'équipements, fiche capteurs, état, diagnostic, arrêt/redémarrage, panne de scénario et maintenance.
 - **IA GAME AI Lab** : application Streamlit indépendante consacrée à l'entraînement et à la sélection des modèles dans DataRobot.
+- **IA GAME Trainer** : application de bureau Windows native (PySide6) pour importer des CSV, entraîner localement le pipeline scikit-learn, consulter les métriques et exporter le modèle. Voir `desktop_app/README.md` ; le binaire `.exe` est produit par le workflow Windows dédié.
 - **DataRobot** : AutoML, comparaison, validation et sélection du modèle ; le jeu ne doit utiliser qu'un déploiement DataRobot déclaré et validé.
 - **FastAPI / scikit-learn** : moteur local conservé pour les tests et expérimentations du pipeline ML ; il n'est plus appelé comme moteur IA du jeu.
 - **GitHub Actions** : tests Python/Ruff et validation headless Godot ; le nouveau parcours de supervision et le connecteur DataRobot doivent encore être couverts par des tests dédiés.
