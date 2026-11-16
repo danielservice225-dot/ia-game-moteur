@@ -37,7 +37,7 @@ func _run() -> void:
     if not _expect(first_light.visible and not second_light.visible, "La récupération doit restaurer le profil initial, pas activer toutes les lumières."):
         return
 
-    manager.queue_free()
+    manager.free()
     print("PASS: profils GPU et adaptation des éclairages validés.")
     quit(0)
 
