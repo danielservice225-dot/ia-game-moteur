@@ -17,8 +17,6 @@ var toggle_button: Button
 var diagnose_button: Button
 var maintenance_button: Button
 var fault_button: Button
-var toggle_button: Button
-var maintenance_button: Button
 var machine_status_label: Label
 var alert_title: Label
 var alert_body: Label
@@ -107,6 +105,11 @@ func _add_panel(parent: Control, rect: Rect2, title: String = "") -> VBoxContain
         column.add_child(separator)
     return column
 
+func _place_panel(column: VBoxContainer, preset: int, panel_position: Vector2) -> void:
+    var panel := column.get_parent() as PanelContainer
+    panel.set_anchors_preset(preset)
+    panel.position = panel_position
+
 func _build_ui() -> void:
     var root := Control.new()
     root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -153,8 +156,7 @@ func _build_ui() -> void:
 
     # Panneau d'état des machines en haut à droite.
     var machine_panel := _add_panel(root, Rect2(0, 0, 270, 158), "État des machines")
-    machine_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-    machine_panel.position = Vector2(-286, 91)
+    _place_panel(machine_panel, Control.PRESET_TOP_RIGHT, Vector2(-286, 91))
     machine_status_label = _label("●  En ligne : —   ▲  En alerte : —   ✖  En panne : —", 13, WHITE)
     machine_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     machine_panel.add_child(machine_status_label)
@@ -167,8 +169,7 @@ func _build_ui() -> void:
 
     # Carte d'alerte sous l'état des machines.
     var alert := _add_panel(root, Rect2(0, 0, 270, 142), "Alerte équipement")
-    alert.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-    alert.position = Vector2(-286, 260)
+    _place_panel(alert, Control.PRESET_TOP_RIGHT, Vector2(-286, 260))
     alert_title = _label("Aucune panne détectée", 16, GREEN, true)
     alert.add_child(alert_title)
     alert_body = _label("Surveillance des équipements active.", 13, WHITE)
@@ -201,8 +202,7 @@ func _build_ui() -> void:
 
     # Console système en bas à gauche.
     var console := _add_panel(root, Rect2(12, 0, 410, 150), "Console système")
-    console.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-    console.position = Vector2(12, -164)
+    _place_panel(console, Control.PRESET_BOTTOM_LEFT, Vector2(12, -164))
     console_log = RichTextLabel.new()
     console_log.bbcode_enabled = true
     console_log.fit_content = true
