@@ -78,3 +78,16 @@ def test_single_class_target_rejected(tmp_path):
     frame = pd.DataFrame({"sensor": range(20), "failure": [0] * 20})
     with pytest.raises(ValueError, match="deux valeurs distinctes"):
         train_model(frame, "failure", tmp_path / "model.joblib")
+
+
+def test_clean_rejects_headers_that_duplicate_after_trimming():
+    frame = pd.DataFrame([[1, 2]], columns=["sensor", " sensor "])
+    with pytest.raises(ValueError, match="après normalisation"):
+        clean_dataframe(frame)
+
+
+def test_clean_converts_string_infinity_to_missing():
+    frame = pd.DataFrame({"measurement": ["1.2", "inf", "2.5"]})
+    cleaned, report = clean_dataframe(frame)
+    assert cleaned["measurement"].isna().sum() == 1
+    assert report["non_finite_values_replaced"] == 1
