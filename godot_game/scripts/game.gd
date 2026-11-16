@@ -412,12 +412,13 @@ func _build_player() -> void:
     var collision := player.get_node("CollisionShape3D") as CollisionShape3D
     collision.disabled = true
     camera = Camera3D.new()
-    camera.position = Vector3(0, 19.5, 27.5)
-    camera.fov = 48.0
+    # Caméra de supervision placée sous la toiture : la ligne de production reste visible.
+    camera.position = Vector3(0, 6.6, 28.5)
+    camera.fov = 58.0
     camera.near = 0.1
     camera.far = 100.0
     add_child(camera)
-    camera.look_at(Vector3(0, 1.0, -0.4), Vector3.UP)
+    camera.look_at(Vector3(0, 1.65, -1.0), Vector3.UP)
     camera.current = true
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
