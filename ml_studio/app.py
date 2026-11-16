@@ -82,7 +82,7 @@ class Studio(QMainWindow):
             ("Historique & rapports", QStyle.StandardPixmap.SP_FileDialogContentsView),
             ("Prédictions", QStyle.StandardPixmap.SP_ArrowRight),
             ("Intégration Godot", QStyle.StandardPixmap.SP_DriveNetIcon),
-            ("Paramètres", QStyle.StandardPixmap.SP_FileDialogOptionsView),
+            ("Paramètres", QStyle.StandardPixmap.SP_FileDialogInfoView),
         ]
         for name, pixmap in nav_items:
             self.nav.addItem(QListWidgetItem(self.style().standardIcon(pixmap), name))
