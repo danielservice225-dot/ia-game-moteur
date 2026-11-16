@@ -5,7 +5,15 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Python = Join-Path $Root ".venv\Scripts\python.exe"
+$SharedArtifacts = Join-Path $env:LOCALAPPDATA "IA GAME\artifacts"
+$LocalModel = Join-Path $SharedArtifacts "model.joblib"
 $Model = Join-Path $Root "artifacts\model.joblib"
+if (Test-Path $LocalModel) {
+    $env:IA_GAME_ARTIFACT_DIR = $SharedArtifacts
+    $Model = $LocalModel
+} else {
+    $env:IA_GAME_ARTIFACT_DIR = Join-Path $Root "artifacts"
+}
 
 if (-not (Test-Path $Python) -or -not (Test-Path $Model)) {
     throw "Préparation absente. Exécutez d'abord .\scripts\prepare_offline.ps1 avec Internet."
