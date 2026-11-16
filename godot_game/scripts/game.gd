@@ -1,6 +1,7 @@
 extends Node3D
 
 const ApiClient = preload("res://scripts/ia_game_api.gd")
+const IndustrialLife = preload("res://scripts/industrial_life.gd")
 
 const FLOOR_SIZE := Vector3(30.0, 0.5, 24.0)
 const PLAYER_SPEED := 5.0
@@ -10,6 +11,7 @@ var player: CharacterBody3D
 var camera: Camera3D
 var camera_pitch := 0.0
 var api: Node
+var industrial_life: Node
 var status_label: Label
 var result_label: Label
 var objective_label: Label
@@ -20,6 +22,9 @@ var elapsed := 0.0
 
 func _ready() -> void:
     _build_factory()
+    industrial_life = IndustrialLife.new()
+    add_child(industrial_life)
+    industrial_life.setup(self)
     _build_player()
     _build_hud()
     api = ApiClient.new()
@@ -154,7 +159,8 @@ func _register_machine(machine_name: String, code: String, position: Vector3, te
         "position": position,
         "temperature": temperature,
         "vibration": vibration,
-        "pressure": pressure
+        "pressure": pressure,
+        "running": true
     })
 
 func _build_production_line() -> void:
@@ -305,7 +311,7 @@ func _build_hud() -> void:
     objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     column.add_child(objective_label)
     var hint := Label.new()
-    hint.text = "ZQSD/WASD : marcher | Souris : regarder | E : analyser | Échap : libérer la souris"
+    hint.text = "ZQSD/WASD : marcher | Souris : regarder | E : diagnostic IA | F : marche/arrêt | Échap : souris"
     hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     column.add_child(hint)
 
@@ -314,6 +320,8 @@ func _input(event: InputEvent) -> void:
         player.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
         camera_pitch = clamp(camera_pitch - event.relative.y * MOUSE_SENSITIVITY, -1.15, 1.15)
         camera.rotation.x = camera_pitch
+    if event is InputEventKey and event.pressed and event.keycode == KEY_F:
+        _toggle_selected_machine()
     if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
         Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
     if event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
@@ -349,6 +357,17 @@ func _refresh_machine_selection() -> void:
         else:
             objective_label.text = "OBJECTIF : approchez-vous d'une machine pour l'inspecter."
 
+func _toggle_selected_machine() -> void:
+    if selected_machine < 0:
+        prediction_text = "Approchez-vous d'un équipement pour le démarrer ou l'arrêter."
+        _update_hud()
+        return
+    var machine: Dictionary = machines[selected_machine]
+    machine["running"] = not bool(machine["running"])
+    industrial_life.set_machine_running(selected_machine, bool(machine["running"]))
+    prediction_text = "%s : %s." % [machine["code"], "EN MARCHE" if machine["running"] else "ARRÊTÉ"]
+    _update_hud()
+
 func _analyse_selected_machine() -> void:
     if selected_machine < 0:
         prediction_text = "Aucune machine à portée. Approchez-vous d'un équipement."
@@ -358,9 +377,9 @@ func _analyse_selected_machine() -> void:
     prediction_text = "Analyse ML en cours sur %s..." % machine["code"]
     _update_hud()
     api.request_prediction({
-        "temperature_c": float(machine["temperature"]) + sin(elapsed * 0.35) * 1.5,
-        "vibration_mm_s": float(machine["vibration"]) + abs(sin(elapsed * 0.8)) * 0.25,
-        "pressure_bar": float(machine["pressure"])
+        "temperature_c": float(machine["temperature"]) + (sin(elapsed * 0.35) * 1.5 if machine["running"] else -12.0),
+        "vibration_mm_s": float(machine["vibration"]) + (abs(sin(elapsed * 0.8)) * 0.25 if machine["running"] else -1.0),
+        "pressure_bar": float(machine["pressure"]) if machine["running"] else 0.0
     })
 
 func _on_prediction_received(result: Dictionary) -> void:
@@ -380,7 +399,7 @@ func _update_hud() -> void:
     if status_label:
         if selected_machine >= 0:
             var machine: Dictionary = machines[selected_machine]
-            status_label.text = "%s | %s | %.1f °C | %.1f mm/s | %.1f bar" % [machine["code"], machine["name"], machine["temperature"], machine["vibration"], machine["pressure"]]
+            status_label.text = "%s | %s | %.1f °C | %.1f mm/s | %.1f bar" % [machine["code"], machine["name"], machine["temperature"] if machine["running"] else 0.0, machine["vibration"] if machine["running"] else 0.0, machine["pressure"] if machine["running"] else 0.0]
         else:
             status_label.text = "%d équipements dans l'usine | Aucun équipement sélectionné" % machines.size()
     if result_label:
