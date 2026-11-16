@@ -10,13 +10,13 @@ Ce protocole décrit une séquence manuelle reproductible pour le jury. Il ne co
 2. Lancer IA GAME avec `scripts/run_offline.ps1` ou démarrer l'API et Godot séparément.
 3. Vérifier que le HUD affiche le GPU attendu et un nombre de FPS.
 4. Laisser la scène tourner 60 secondes avant la première mesure.
-5. Conserver `user://ia_game_hardware_benchmark.csv`. Activer F6 si l'on souhaite également conserver les mesures machine par machine.
+5. Conserver `user://ia_game_hardware_benchmark.csv`. Activer F6 si l'on souhaite également conserver les mesures machine par machine, y compris les variables AI4I.
 
 ## Scénario standard
 
 Repartir d'un lancement neuf du jeu pour chaque répétition.
 
-1. **État initial** : approcher la presse P-01 et noter son état et ses trois capteurs.
+1. **État initial** : approcher la presse P-01 et noter son état, ses trois capteurs génériques et les six variables AI4I.
 2. **Diagnostic nominal** : appuyer sur E et conserver le message retourné par le modèle.
 3. **Arrêt/redémarrage** : appuyer sur F deux fois et vérifier le retour à l'état RUNNING.
 4. **Injection de panne** : appuyer sur G et vérifier l'état FAULT et la dégradation des capteurs.
