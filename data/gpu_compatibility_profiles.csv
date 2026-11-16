@@ -1,0 +1,4 @@
+profile,gpu_detection_examples,initial_resolution,msaa_3d,omni_lights,shadows,target_fps,notes
+Économique,"Intel HD 2000/3000/4000; llvmpipe; software renderer",1280x720,2x,disabled,disabled,30,"Preset prudent ; le jeu conserve la résolution et coupe les éclairages ponctuels"
+Équilibré,"Intel integrated GPUs; unknown adapters",1280x720,2x,alternating,disabled,60,"Preset par défaut ; adaptation selon les FPS observés"
+Élevé,"NVIDIA GeForce; AMD Radeon",1280x720,2x,enabled,disabled,60,"Preset initial plus riche ; les éclairages sont réduits si les FPS chutent"
