@@ -10,8 +10,13 @@ from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import (
-    accuracy_score, f1_score, mean_absolute_error, mean_squared_error, r2_score,
-    precision_score, recall_score,
+    accuracy_score,
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
 )
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -26,10 +31,12 @@ def clean_dataframe(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     before = len(result)
     result = result.drop_duplicates().reset_index(drop=True)
     dropped = before - len(result)
-    # Les colonnes entièrement vides ne portent aucune information exploitable.
     empty_columns = [str(c) for c in result.columns[result.isna().all()]]
     result = result.drop(columns=empty_columns)
-    return result, {"duplicate_rows_removed": int(dropped), "empty_columns_removed": empty_columns}
+    return result, {
+        "duplicate_rows_removed": dropped,
+        "empty_columns_removed": empty_columns,
+    }
 
 
 def train_model(
@@ -53,34 +60,55 @@ def train_model(
     if y.nunique() < 2:
         raise ValueError("La cible doit contenir au moins deux valeurs distinctes.")
 
-    kind = type_of_target(y)
-    classification = kind in {"binary", "multiclass"}
+    classification = type_of_target(y) in {"binary", "multiclass"}
     stratify = y if classification and y.value_counts().min() >= 2 else None
-    if stratify is not None and y.value_counts().min() < 2:
-        stratify = None
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=stratify
     )
 
     numeric = X.select_dtypes(include=["number", "bool"]).columns.tolist()
-    categorical = [c for c in X.columns if c not in numeric]
+    categorical = [column for column in X.columns if column not in numeric]
     transformers = []
     if numeric:
-        transformers.append(("numeric", Pipeline([
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler()),
-        ]), numeric))
+        transformers.append(
+            (
+                "numeric",
+                Pipeline(
+                    [
+                        ("imputer", SimpleImputer(strategy="median")),
+                        ("scaler", StandardScaler()),
+                    ]
+                ),
+                numeric,
+            )
+        )
     if categorical:
-        transformers.append(("categorical", Pipeline([
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("encoder", OneHotEncoder(handle_unknown="ignore")),
-        ]), categorical))
+        transformers.append(
+            (
+                "categorical",
+                Pipeline(
+                    [
+                        ("imputer", SimpleImputer(strategy="most_frequent")),
+                        ("encoder", OneHotEncoder(handle_unknown="ignore")),
+                    ]
+                ),
+                categorical,
+            )
+        )
     preprocessing = ColumnTransformer(transformers=transformers)
     estimator = (
-        RandomForestClassifier(n_estimators=150, random_state=random_state, n_jobs=-1,
-                               class_weight="balanced")
-        if classification else
-        RandomForestRegressor(n_estimators=150, random_state=random_state, n_jobs=-1)
+        RandomForestClassifier(
+            n_estimators=150,
+            random_state=random_state,
+            n_jobs=-1,
+            class_weight="balanced",
+        )
+        if classification
+        else RandomForestRegressor(
+            n_estimators=150,
+            random_state=random_state,
+            n_jobs=-1,
+        )
     )
     pipeline = Pipeline([("preprocessing", preprocessing), ("model", estimator)])
     pipeline.fit(X_train, y_train)
@@ -89,9 +117,15 @@ def train_model(
     if classification:
         metrics = {
             "accuracy": float(accuracy_score(y_test, predictions)),
-            "precision_weighted": float(precision_score(y_test, predictions, average="weighted", zero_division=0)),
-            "recall_weighted": float(recall_score(y_test, predictions, average="weighted", zero_division=0)),
-            "f1_weighted": float(f1_score(y_test, predictions, average="weighted", zero_division=0)),
+            "precision_weighted": float(
+                precision_score(y_test, predictions, average="weighted", zero_division=0)
+            ),
+            "recall_weighted": float(
+                recall_score(y_test, predictions, average="weighted", zero_division=0)
+            ),
+            "f1_weighted": float(
+                f1_score(y_test, predictions, average="weighted", zero_division=0)
+            ),
         }
         task = "classification"
     else:
@@ -103,15 +137,21 @@ def train_model(
         }
         task = "regression"
 
-    model_path.parent.mkdir(parents=True, exist_ok=True)
+    training_seconds = time.perf_counter() - started
     metadata = {
-        "task": task, "target": target, "features": list(X.columns),
-        "metrics": metrics, "train_rows": int(len(X_train)), "test_rows": int(len(X_test)),
-        "random_state": random_state, "test_size": test_size,
+        "task": task,
+        "target": target,
+        "features": list(X.columns),
+        "metrics": metrics,
+        "train_rows": len(X_train),
+        "test_rows": len(X_test),
+        "random_state": random_state,
+        "test_size": test_size,
+        "training_seconds": round(training_seconds, 6),
         "cleaning": cleaning,
     }
+    model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump({"pipeline": pipeline, "metadata": metadata}, model_path)
-    metadata["training_seconds"] = round(time.perf_counter() - started, 6)
     return metadata
 
 
@@ -125,4 +165,4 @@ def predict_rows(model, rows: list[dict]) -> list:
         raise ValueError("La liste rows ne doit pas être vide.")
     frame = pd.DataFrame(rows)
     predictions = model.predict(frame)
-    return [v.item() if hasattr(v, "item") else v for v in predictions]
+    return [value.item() if hasattr(value, "item") else value for value in predictions]

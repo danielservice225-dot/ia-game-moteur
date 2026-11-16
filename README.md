@@ -1,18 +1,17 @@
-# IA GAME
+# IA GAME — Simulation industrielle et Machine Learning
 
-Prototype technique d'un jeu de simulation industrielle connecté à un véritable moteur de Machine Learning.
+IA GAME est un prototype technique qui relie une simulation 3D Godot à un moteur ML Python. Les fonctions doivent être exécutées et vérifiées dans l'environnement cible avant toute présentation comme produit final.
 
-## Architecture
+## Composants
 
-- `backend/`: API HTTP FastAPI.
-- `ml_engine/`: préparation CSV, entraînement scikit-learn et prédiction.
-- `godot_game/`: client Godot 4 d'exemple pour appeler l'API.
-- `tests/`: tests automatisés.
-- `.github/workflows/`: vérification continue.
+- **Godot 4** : scène 3D industrielle jouable, déplacement clavier et interaction avec une machine.
+- **FastAPI** : API locale pour importer les données, entraîner et servir les prédictions.
+- **Pandas / scikit-learn** : nettoyage CSV, pipeline de prétraitement, Random Forest classification/régression et évaluation sur jeu de test séparé.
+- **GitHub Actions** : tests Python et contrôle Ruff.
 
-## Démarrage local
+## Démarrer le moteur Python
 
-Python 3.10 à 3.12 recommandé.
+Python 3.10+ recommandé.
 
 ```bash
 python -m venv .venv
@@ -20,34 +19,38 @@ python -m venv .venv
 source .venv/bin/activate
 # Windows PowerShell : .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
+python scripts/generate_demo_dataset.py
+python scripts/demo_train.py
 uvicorn backend.main:app --reload
 ```
 
-Ouvrir http://127.0.0.1:8000/docs.
+API : http://127.0.0.1:8000/docs
 
-## Démonstration ML reproductible
+## Lancer le jeu
 
-```bash
-python scripts/generate_demo_dataset.py
-python scripts/demo_train.py
-pytest
-```
+1. Ouvrir le dossier `godot_game/` avec Godot 4.
+2. Démarrer le serveur Python et entraîner le modèle.
+3. Lancer le projet Godot.
+4. Se déplacer avec ZQSD/WASD.
+5. Approcher la presse industrielle et appuyer sur E pour demander une prédiction au modèle Python.
 
-Le dataset de démonstration est synthétique et sert uniquement à vérifier le pipeline logiciel. Il ne constitue pas une preuve de performance industrielle réelle. Pour une évaluation scientifique, fournir un CSV industriel documenté et choisir une colonne cible pertinente.
+La scène et le dataset fournis sont des éléments de prototype. Le dataset de 500 lignes est **synthétique** et sert uniquement à vérifier le flux technique ; il ne constitue pas une preuve de performance industrielle réelle.
 
 ## API
 
-- `GET /health`: état du service.
-- `POST /datasets/preview`: aperçu et diagnostic d'un CSV.
-- `POST /models/train`: entraînement et évaluation sur un jeu de test séparé.
-- `POST /models/predict`: prédictions avec le dernier modèle entraîné.
-
-Les modèles sont sauvegardés dans `artifacts/`. Ne jamais versionner de données sensibles, secrets ou modèles propriétaires.
+- `GET /health` : état du service.
+- `POST /datasets/preview` : diagnostic et aperçu CSV.
+- `POST /models/train?target=failure` : entraînement sur le CSV envoyé en multipart/form-data.
+- `POST /models/predict` : prédiction du modèle entraîné.
 
 ## DataRobot
 
-L'intégration DataRobot n'est pas activée par défaut. Elle nécessite un compte, une URL d'instance et une clé API. Le moteur local scikit-learn permet de développer et tester le parcours hors ligne ; il ne doit pas être présenté comme un entraînement DataRobot.
+Aucun compte DataRobot n'étant disponible à ce stade, le pipeline local scikit-learn est le moteur réellement utilisable. DataRobot n'est pas présenté comme connecté. Une intégration réelle nécessitera un compte, un endpoint et un jeton API configurés en secrets d'environnement, puis des tests d'authentification et d'entraînement.
 
-## Limites actuelles
+## Limites avant compétition
 
-Ce dépôt fournit le socle backend ML et un exemple de communication Godot. Il ne contient pas encore un jeu 3D complet, ni une intégration DataRobot certifiée, ni des données industrielles validées. Ces éléments doivent être ajoutés et testés avant une présentation comme produit final.
+- Tester l'ouverture et l'exécution du projet avec la version exacte de Godot 4 installée.
+- Tester les appels HTTP depuis le poste de démonstration.
+- Remplacer les données synthétiques par un dataset industriel documenté.
+- Vérifier le choix de la cible, les fuites de données, les métriques et la reproductibilité.
+- Ne jamais communiquer de clé API ou de donnée industrielle confidentielle dans Git.
