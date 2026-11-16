@@ -265,5 +265,16 @@ def predict_rows(model, rows: list[dict]) -> list:
     if not rows:
         raise ValueError("La liste rows ne doit pas être vide.")
     frame = pd.DataFrame(rows)
+    expected_features = list(getattr(model, "feature_names_in_", []))
+    if expected_features:
+        missing_features = [name for name in expected_features if name not in frame.columns]
+        if missing_features:
+            raise ValueError(
+                "Variables capteurs absentes pour ce modèle : "
+                + ", ".join(str(name) for name in missing_features)
+            )
+        # The game can provide a superset of sensors. Select the exact training schema
+        # and preserve its order; never fabricate missing sensor measurements.
+        frame = frame.loc[:, expected_features]
     predictions = model.predict(frame)
     return [value.item() if hasattr(value, "item") else value for value in predictions]
