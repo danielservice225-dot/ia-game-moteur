@@ -198,9 +198,10 @@ class MainWindow(QMainWindow):
         params = QGridLayout()
         params.addWidget(QLabel("Part de test"), 0, 0)
         self.test_size = QDoubleSpinBox()
-        self.test_size.setRange(0.10, 0.50)
-        self.test_size.setSingleStep(0.05)
-        self.test_size.setValue(0.20)
+        self.test_size.setDecimals(0)
+        self.test_size.setRange(10, 50)
+        self.test_size.setSingleStep(5)
+        self.test_size.setValue(20)
         self.test_size.setSuffix(" %")
         self.test_size.setToolTip("Fraction du dataset réservée au test, exprimée ici en proportion.")
         params.addWidget(self.test_size, 0, 1)
@@ -379,7 +380,7 @@ class MainWindow(QMainWindow):
         self.result_label.setText("Entraînement réel en cours sur les données importées…")
         self.worker_thread = QThread(self)
         self.worker = TrainingWorker(
-            self.frame, target, excluded, self.test_size.value(),
+            self.frame, target, excluded, self.test_size.value() / 100.0,
             self.random_state.value(), self.model_path,
         )
         self.worker.moveToThread(self.worker_thread)
