@@ -2,6 +2,11 @@ extends CanvasLayer
 
 const API_BASE_URL := "http://127.0.0.1:8000"
 const BOUNDARY := "----IAGameCsvBoundary7MA4YWxkTrZu0gW"
+const SUPPORTED_GAME_FEATURES := [
+    "temperature_c", "vibration_mm_s", "pressure_bar",
+    "Type", "Air temperature [K]", "Process temperature [K]",
+    "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"
+]
 
 var file_dialog: FileDialog
 var http: HTTPRequest
@@ -129,6 +134,15 @@ func _train_model() -> void:
     var bytes := file.get_buffer(file.get_length())
     file.close()
     var target := target_select.get_item_text(target_select.selected)
+    var unsupported := PackedStringArray()
+    var columns: Array = preview_data.get("columns", [])
+    for column in columns:
+        var feature_name := str(column)
+        if feature_name != target and not SUPPORTED_GAME_FEATURES.has(feature_name):
+            unsupported.append(feature_name)
+    if not unsupported.is_empty():
+        _set_status("Entraînement bloqué pour le jeu : capteurs non disponibles pour ces colonnes : %s. Retirez-les du CSV ou ajoutez leur simulation avant de continuer." % ", ".join(unsupported))
+        return
     _set_status("Entraînement du modèle sur les données importées...")
     train_button.disabled = true
     _send_multipart("/models/train?target=" + target.uri_encode(), bytes, "train")
@@ -150,12 +164,16 @@ func _send_multipart(endpoint: String, file_bytes: PackedByteArray, action: Stri
     var error := http.request_raw(API_BASE_URL + endpoint, headers, HTTPClient.METHOD_POST, body)
     if error != OK:
         busy = false
+        if action == "train":
+            train_button.disabled = false
         _set_status("Erreur d'envoi HTTP : " + error_string(error))
 
 func _on_http_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
     busy = false
     var parsed = JSON.parse_string(body.get_string_from_utf8())
     if result != HTTPRequest.RESULT_SUCCESS:
+        if http.get_meta("action", "") == "train":
+            train_button.disabled = false
         _set_status("Erreur réseau. Vérifiez que l'API Python fonctionne sur le port 8000.")
         return
     if response_code < 200 or response_code >= 300:
@@ -188,6 +206,10 @@ func _on_http_completed(result: int, response_code: int, _headers: PackedStringA
         var lines := PackedStringArray()
         for key in metrics.keys():
             lines.append("%s : %.4f" % [str(key), float(metrics[key])])
+        var feature_names := PackedStringArray()
+        for feature in parsed.get("features", []):
+            feature_names.append(str(feature))
+        lines.append("Variables : " + ", ".join(feature_names))
         _set_status("ENTRAÎNEMENT TERMINÉ — %s\nTrain : %s | Test : %s\n%s" % [
             str(parsed.get("task", "ML")),
             str(parsed.get("train_rows", 0)),
