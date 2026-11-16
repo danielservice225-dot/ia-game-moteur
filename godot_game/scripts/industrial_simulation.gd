@@ -26,6 +26,11 @@ func configure(definitions: Array[Dictionary]) -> void:
             "base_temperature": float(definition.get("temperature", 60.0)),
             "base_vibration": float(definition.get("vibration", 1.5)),
             "base_pressure": float(definition.get("pressure", 5.0)),
+            "machine_type": str(definition.get("machine_type", "M")),
+            "tool_wear_min": float(definition.get("tool_wear_min", 0.0)),
+            "air_temperature_k": 300.0,
+            "process_temperature_k": 310.0,
+            "torque_nm": 0.0,
             "temperature_c": float(definition.get("temperature", 60.0)),
             "vibration_mm_s": float(definition.get("vibration", 1.5)),
             "pressure_bar": float(definition.get("pressure", 5.0)),
@@ -42,7 +47,11 @@ func advance(delta: float) -> void:
             var phase := elapsed * 0.7 + float(index) * 1.37
             var load := clampf(0.62 + sin(phase) * 0.12, 0.25, 0.92)
             machine["load_pct"] = load * 100.0
-            machine["rpm"] = 1450.0 * load
+            machine["rpm"] = 2100.0 * load
+            machine["air_temperature_k"] = 300.0 + sin(elapsed * 0.08) * 1.5
+            machine["process_temperature_k"] = float(machine["air_temperature_k"]) + 10.0 + load * 1.5 + maxf(float(machine["temperature_c"]) - float(machine["base_temperature"]), 0.0) * 0.05
+            machine["torque_nm"] = 32.0 + load * 25.0 + float(machine["vibration_mm_s"]) * 2.0
+            machine["tool_wear_min"] = minf(float(machine["tool_wear_min"]) + delta / 60.0, 250.0)
             var target_temperature := float(machine["base_temperature"]) + load * 8.0 + sin(phase * 0.4) * 1.2
             machine["temperature_c"] = move_toward(float(machine["temperature_c"]), target_temperature, delta * 0.9)
             machine["vibration_mm_s"] = float(machine["base_vibration"]) + load * 0.55 + abs(sin(phase * 1.8)) * 0.18
@@ -50,6 +59,9 @@ func advance(delta: float) -> void:
         else:
             machine["load_pct"] = 0.0
             machine["rpm"] = 0.0
+            machine["air_temperature_k"] = 300.0 + sin(elapsed * 0.08) * 1.5
+            machine["process_temperature_k"] = move_toward(float(machine["process_temperature_k"]), float(machine["air_temperature_k"]) + 2.0, delta * 0.8)
+            machine["torque_nm"] = move_toward(float(machine["torque_nm"]), 0.0, delta * 8.0)
             machine["temperature_c"] = move_toward(float(machine["temperature_c"]), 27.0, delta * 0.22)
             machine["vibration_mm_s"] = move_toward(float(machine["vibration_mm_s"]), 0.0, delta * 0.8)
             if str(machine["state"]) != STATE_FAULT:
@@ -85,6 +97,9 @@ func inject_fault(index: int) -> void:
     machine["temperature_c"] = maxf(float(machine["temperature_c"]), 112.0)
     machine["vibration_mm_s"] = maxf(float(machine["vibration_mm_s"]), 8.2)
     machine["pressure_bar"] = minf(float(machine["pressure_bar"]), 0.6)
+    machine["rpm"] = maxf(float(machine["rpm"]), 2100.0)
+    machine["torque_nm"] = maxf(float(machine["torque_nm"]), 68.0)
+    machine["process_temperature_k"] = maxf(float(machine["process_temperature_k"]), float(machine["air_temperature_k"]) + 14.0)
     machine["fault_latched"] = true
     machines[index] = machine
     _set_state(index, STATE_FAULT)
@@ -101,6 +116,9 @@ func perform_maintenance(index: int) -> bool:
     machine["temperature_c"] = float(machine["base_temperature"])
     machine["vibration_mm_s"] = float(machine["base_vibration"])
     machine["pressure_bar"] = float(machine["base_pressure"])
+    machine["rpm"] = 0.0
+    machine["torque_nm"] = 0.0
+    machine["process_temperature_k"] = float(machine["air_temperature_k"]) + 10.0
     machines[index] = machine
     _set_state(index, STATE_RUNNING)
     return true
@@ -117,7 +135,13 @@ func get_sensor_payload(index: int) -> Dictionary:
     return {
         "temperature_c": snappedf(float(machine["temperature_c"]), 0.01),
         "vibration_mm_s": snappedf(float(machine["vibration_mm_s"]), 0.001),
-        "pressure_bar": snappedf(float(machine["pressure_bar"]), 0.001)
+        "pressure_bar": snappedf(float(machine["pressure_bar"]), 0.001),
+        "Type": str(machine["machine_type"]),
+        "Air temperature [K]": snappedf(float(machine["air_temperature_k"]), 0.01),
+        "Process temperature [K]": snappedf(float(machine["process_temperature_k"]), 0.01),
+        "Rotational speed [rpm]": snappedf(float(machine["rpm"]), 0.1),
+        "Torque [Nm]": snappedf(float(machine["torque_nm"]), 0.01),
+        "Tool wear [min]": snappedf(float(machine["tool_wear_min"]), 0.01)
     }
 
 func _set_state(index: int, state: String) -> void:
