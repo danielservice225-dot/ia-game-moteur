@@ -106,7 +106,7 @@ func _build_interface() -> void:
     content.add_child(status_label)
 
     file_dialog = FileDialog.new()
-    file_dialog.file_mode = FileDialog.FILE_MODE_OPEN
+    file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
     file_dialog.access = FileDialog.ACCESS_FILESYSTEM
     file_dialog.add_filter("*.csv", "Fichiers CSV")
     file_dialog.file_selected.connect(_on_file_selected)
