@@ -12,6 +12,8 @@ var camera: Camera3D
 var industrial_life: Node
 var simulation: Variant
 var machines: Array[Dictionary] = []
+var animated_rotors: Array[MeshInstance3D] = []
+var conveyor_items: Array[MeshInstance3D] = []
 var selected_machine := -1
 var prediction_text := "Approchez-vous d'une machine et appuyez sur E."
 var elapsed := 0.0
@@ -45,6 +47,9 @@ func _build_factory() -> void:
     _build_lighting()
     _build_production_line()
     _build_storage_area()
+    _build_catwalk_and_stairs()
+    _build_robotic_workcell()
+    _build_factory_details()
     _build_safety_markings()
     _build_control_station()
 
@@ -128,7 +133,8 @@ func _build_hall_structure() -> void:
     _box(self, Vector3(0, 4.5, -12), Vector3(30, 9, 0.35), concrete, true)
     _box(self, Vector3(-15, 4.5, 0), Vector3(0.35, 9, 24), concrete, true)
     _box(self, Vector3(15, 4.5, 0), Vector3(0.35, 9, 24), concrete, true)
-    _box(self, Vector3(0, 9, 0), Vector3(30, 0.35, 24), roof)
+    # Pas de dalle opaque au-dessus de la caméra de supervision :
+    # les poutres et traverses conservent la structure industrielle sans cacher les machines.
     for x in [-13.5, -9.0, -4.5, 0.0, 4.5, 9.0, 13.5]:
         _box(self, Vector3(x, 4.5, -11.65), Vector3(0.28, 9, 0.28), dark_steel)
         _box(self, Vector3(x, 4.5, 11.65), Vector3(0.28, 9, 0.28), dark_steel)
@@ -145,7 +151,9 @@ func _build_lighting() -> void:
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-58, -25, 0)
     sun.light_energy = 1.15
-    sun.shadow_enabled = false
+    sun.shadow_enabled = true
+    sun.directional_shadow_max_distance = 42.0
+    sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
     add_child(sun)
     for x in [-10.0, -3.5, 3.5, 10.0]:
         var light := OmniLight3D.new()
@@ -153,6 +161,8 @@ func _build_lighting() -> void:
         light.light_color = Color(0.78, 0.86, 1.0)
         light.light_energy = 1.5
         light.omni_range = 10.0
+        light.shadow_enabled = true
+        light.omni_shadow_mode = OmniLight3D.SHADOW_CUBE
         light.add_to_group("adaptive_lights")
         add_child(light)
         var housing := _material(Color(0.1, 0.12, 0.14), 0.65, 0.4)
@@ -227,6 +237,8 @@ func _make_motor_pump(origin: Vector3, steel: Material, blue: Material) -> void:
     _cylinder(root, Vector3(0.45, 1.1, 0), 0.62, 0.8, steel, Vector3(0, 0, PI / 2))
     _cylinder(root, Vector3(1.0, 1.0, 0), 0.85, 0.55, blue)
     _cylinder(root, Vector3(1.0, 1.0, 0.31), 0.3, 0.08, steel)
+    var motor_shaft := _cylinder(root, Vector3(1.0, 1.0, 0.48), 0.11, 0.42, steel, Vector3(0, 0, PI / 2))
+    animated_rotors.append(motor_shaft)
     for x in [-1.0, -0.2, 0.4]:
         _box(root, Vector3(x, 1.85, 0), Vector3(0.08, 0.22, 1.3), steel)
     _label_3d(root, "POMPE M-02", Vector3(0, 2.45, 0), Color(0.75, 0.88, 1.0))
@@ -248,10 +260,15 @@ func _make_conveyor(origin: Vector3, steel: Material, rubber: Material, yellow: 
     add_child(root)
     _box(root, Vector3(0, 0.8, 0), Vector3(9.0, 0.18, 1.65), rubber)
     for x in [-4.2, -3.0, -1.8, -0.6, 0.6, 1.8, 3.0, 4.2]:
-        _cylinder(root, Vector3(x, 0.72, 0), 0.17, 1.85, steel, Vector3(0, 0, PI / 2))
+        var roller := _cylinder(root, Vector3(x, 0.72, 0), 0.17, 1.85, steel, Vector3(0, 0, PI / 2))
+        animated_rotors.append(roller)
         _box(root, Vector3(x, 0.35, 0), Vector3(0.12, 0.7, 0.12), steel)
     for z in [-0.88, 0.88]:
         _box(root, Vector3(0, 1.0, z), Vector3(9.2, 0.22, 0.12), yellow)
+    for item_index in range(4):
+        var package_material := _material([Color("#c47a32"), Color("#477f9e"), Color("#b9c2c8"), Color("#8d9b55")][item_index], 0.18, 0.62)
+        var package := _box(root, Vector3(-3.2 + float(item_index) * 1.8, 1.08, 0), Vector3(0.72, 0.48, 0.62), package_material)
+        conveyor_items.append(package)
     _label_3d(root, "CONVOYEUR CV-04", Vector3(0, 1.8, 0), Color(1.0, 0.8, 0.25))
 
 func _make_pipe_run(steel: Material, yellow: Material) -> void:
@@ -277,6 +294,98 @@ func _build_storage_area() -> void:
                 _box(self, Vector3(x + 1.25, y, z + 0.9), Vector3(2.6, 0.12, 2.0), shelf)
             for i in range(3):
                 _box(self, Vector3(x + 0.6 + float(i) * 0.65, 1.1, z + 0.9), Vector3(0.55, 0.95, 0.65), _material(Color(0.34, 0.39, 0.42), 0.3, 0.7))
+
+
+func _build_catwalk_and_stairs() -> void:
+    var steel := _material(Color("#202a31"), 0.82, 0.3)
+    var yellow := _material(Color("#f4b323"), 0.32, 0.38)
+    var grating := _material(Color("#424b50"), 0.72, 0.52)
+    # Passerelle de maintenance à l'arrière de la ligne de production.
+    _box(self, Vector3(0, 3.65, -8.0), Vector3(22.0, 0.22, 2.2), grating)
+    _box(self, Vector3(0, 3.78, -9.12), Vector3(22.0, 0.12, 0.10), yellow)
+    _box(self, Vector3(0, 3.78, -6.88), Vector3(22.0, 0.12, 0.10), yellow)
+    for x in range(-10, 11, 2):
+        _box(self, Vector3(float(x), 3.82, -8.0), Vector3(0.045, 0.035, 2.0), steel)
+    for x in [-10.8, -7.0, -3.5, 0.0, 3.5, 7.0, 10.8]:
+        _box(self, Vector3(x, 2.0, -8.0), Vector3(0.18, 4.0, 0.18), steel)
+        _box(self, Vector3(x, 4.55, -8.0), Vector3(0.12, 1.55, 0.12), yellow)
+        _box(self, Vector3(x, 5.25, -8.0), Vector3(0.12, 0.12, 2.2), yellow)
+    # Escalier métallique en diagonale sur le côté gauche.
+    for step in range(12):
+        var t := float(step) / 11.0
+        var pos := Vector3(-11.1, 0.18 + t * 3.35, -3.1 - t * 4.0)
+        _box(self, pos, Vector3(1.35, 0.16, 0.48), grating)
+        _box(self, pos + Vector3(-0.62, 0.12, 0), Vector3(0.10, 0.24, 0.10), yellow)
+        _box(self, pos + Vector3(0.62, 0.12, 0), Vector3(0.10, 0.24, 0.10), yellow)
+    for side in [-1.0, 1.0]:
+        var rail := _cylinder(self, Vector3(-11.1 + side * 0.78, 2.0, -5.0), 0.055, 6.4, yellow)
+        rail.rotation.z = -0.72
+    _label_3d(self, "PASSERELLE MAINTENANCE", Vector3(-7.5, 4.8, -8.0), Color("#ffd05a"))
+
+func _build_robotic_workcell() -> void:
+    var yellow := _material(Color("#f5b51b"), 0.38, 0.3)
+    var dark := _material(Color("#151c22"), 0.82, 0.28)
+    var steel := _material(Color("#78848a"), 0.88, 0.24)
+    var glass := _material(Color(0.08, 0.28, 0.34, 0.42), 0.42, 0.16)
+    # Cellule robotisée sécurisée à droite du convoyeur.
+    var origin := Vector3(9.0, 0.0, 5.0)
+    for x in [-2.0, 2.0]:
+        for z in [-1.7, 1.7]:
+            _box(self, origin + Vector3(x, 1.45, z), Vector3(0.12, 2.9, 0.12), dark)
+            _box(self, origin + Vector3(x, 2.85, z), Vector3(0.16, 0.12, 0.16), yellow)
+    for z in [-1.7, 1.7]:
+        _box(self, origin + Vector3(0, 1.45, z), Vector3(4.0, 2.9, 0.045), glass)
+    _box(self, origin + Vector3(-2.0, 1.45, 0), Vector3(0.045, 2.9, 3.4), glass)
+    _box(self, origin + Vector3(2.0, 1.45, 0), Vector3(0.045, 2.9, 3.4), glass)
+    _box(self, origin + Vector3(0, 0.18, 0), Vector3(4.1, 0.22, 3.6), dark)
+    # Socle et segments du bras articulé.
+    _cylinder(self, origin + Vector3(0, 0.48, 0), 0.62, 0.42, yellow)
+    _cylinder(self, origin + Vector3(0, 0.78, 0), 0.36, 0.24, dark)
+    var shoulder := origin + Vector3(0, 1.35, 0)
+    _cylinder(self, shoulder, 0.42, 0.48, yellow)
+    var upper := _box(self, shoulder + Vector3(0.65, 0.42, 0), Vector3(1.35, 0.30, 0.34), yellow)
+    upper.rotation.z = -0.55
+    _cylinder(self, shoulder + Vector3(1.2, 0.85, 0), 0.27, 0.42, dark)
+    var forearm := _box(self, shoulder + Vector3(1.55, 1.25, 0), Vector3(1.05, 0.22, 0.24), yellow)
+    forearm.rotation.z = 0.38
+    _cylinder(self, shoulder + Vector3(1.95, 1.43, 0), 0.13, 0.36, steel, Vector3(0, 0, PI / 2))
+    _label_3d(self, "CELLULE ROBOTISÉE", origin + Vector3(0, 3.35, 0), Color("#ffd05a"))
+    # Signalisation lumineuse de sécurité.
+    for i in range(3):
+        var beacon_material := _material([Color("#e83c32"), Color("#f2bd2c"), Color("#16c879")][i], 0.0, 0.2)
+        beacon_material.emission_enabled = true
+        beacon_material.emission = beacon_material.albedo_color
+        _cylinder(self, origin + Vector3(-1.65 + float(i) * 0.18, 3.08, -1.7), 0.07, 0.16, beacon_material)
+
+func _build_factory_details() -> void:
+    var dark := _material(Color("#161e24"), 0.78, 0.34)
+    var yellow := _material(Color("#eeb323"), 0.28, 0.4)
+    var steel := _material(Color("#68757b"), 0.85, 0.3)
+    var concrete := _material(Color("#4b555a"), 0.12, 0.82)
+    # Poutres de toiture, conduites et chemins de câbles.
+    for x in [-12.0, -8.0, -4.0, 0.0, 4.0, 8.0, 12.0]:
+        _box(self, Vector3(x, 8.72, 0), Vector3(0.22, 0.22, 23.0), dark)
+    for z in [-10.0, -6.0, -2.0, 2.0, 6.0, 10.0]:
+        _box(self, Vector3(0, 8.62, z), Vector3(29.0, 0.18, 0.18), steel)
+    # Gaines et conduites verticales avec colliers de sécurité.
+    for x in [-13.2, 13.2]:
+        _cylinder(self, Vector3(x, 5.4, -3.0), 0.22, 7.0, steel)
+        for y in [2.2, 4.2, 6.2, 8.2]:
+            _cylinder(self, Vector3(x, y, -3.0), 0.29, 0.12, yellow)
+    # Gaines de ventilation au plafond.
+    for x in [-8.0, 0.0, 8.0]:
+        _box(self, Vector3(x, 7.9, 1.0), Vector3(0.75, 0.65, 12.0), steel)
+        for z in [-4.0, 0.0, 4.0, 6.0]:
+            _box(self, Vector3(x, 7.55, z), Vector3(1.0, 0.08, 0.8), dark)
+    # Poteaux de protection et bornes jaune/noir aux zones de circulation.
+    for pos in [Vector3(-4.0, 0.55, 1.2), Vector3(4.0, 0.55, 1.2), Vector3(-4.0, 0.55, 6.4), Vector3(4.0, 0.55, 6.4)]:
+        _cylinder(self, pos, 0.16, 1.1, yellow)
+        _cylinder(self, pos + Vector3(0, 0.42, 0), 0.165, 0.16, dark)
+    # Grands panneaux d'identification des zones.
+    _box(self, Vector3(-13.9, 3.8, 6.0), Vector3(0.12, 1.3, 3.2), dark)
+    _label_3d(self, "ZONE A  |  PRODUCTION", Vector3(-13.65, 4.2, 6.0), Color("#f8c64b"))
+    _box(self, Vector3(13.9, 3.8, 6.0), Vector3(0.12, 1.3, 3.2), dark)
+    _label_3d(self, "ZONE B  |  ROBOTIQUE", Vector3(13.65, 4.2, 6.0), Color("#f8c64b"))
 
 func _build_safety_markings() -> void:
     var yellow := _material(Color(1.0, 0.68, 0.05), 0.0, 0.65)
@@ -304,9 +413,13 @@ func _build_player() -> void:
     var collision := player.get_node("CollisionShape3D") as CollisionShape3D
     collision.disabled = true
     camera = Camera3D.new()
-    camera.position = Vector3(0, 18, 23)
+    # Caméra de supervision placée sous la toiture : la ligne de production reste visible.
+    camera.position = Vector3(0, 7.2, 24.5)
+    camera.fov = 54.0
+    camera.near = 0.1
+    camera.far = 100.0
     add_child(camera)
-    camera.look_at(Vector3(0, 0, 0), Vector3.UP)
+    camera.look_at(Vector3(0, 1.45, -0.8), Vector3.UP)
     camera.current = true
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -328,6 +441,14 @@ func _on_machine_selected(index: int) -> void:
     _update_hud()
 
 func _process(delta: float) -> void:
+    for rotor in animated_rotors:
+        if is_instance_valid(rotor):
+            rotor.rotate_x(delta * 8.0)
+    for item in conveyor_items:
+        if is_instance_valid(item):
+            item.position.x += delta * 1.15
+            if item.position.x > 4.3:
+                item.position.x = -4.3
     performance_accumulator += delta
     if performance_accumulator >= 1.0:
         performance_accumulator = 0.0

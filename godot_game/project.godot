@@ -10,11 +10,13 @@ window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 
 [rendering]
-renderer/rendering_method="gl_compatibility"
+renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.025, 0.04, 0.055, 1)
 textures/default_filters/use_nearest_mipmap_filter=false
-anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d=3
+anti_aliasing/quality/screen_space_aa=1
+textures/default_filters/use_nearest_mipmap_filter=true
 
 [input]
 move_forward={
