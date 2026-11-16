@@ -64,10 +64,10 @@ Quatre équipements sont présents :
 
 Commandes :
 - **F** : démarrer ou arrêter l'équipement sélectionné ;
-- **E** : envoyer température, vibration et pression au modèle ML ;
+- **E** : envoyer les mesures génériques et les six variables AI4I simulées au modèle ML ;
 - **G** : injecter une panne de démonstration ;
 - **M** : effectuer la maintenance ;
-- **F6** : démarrer/arrêter un CSV complémentaire de mesures.
+- **F6** : démarrer/arrêter un CSV complémentaire contenant les capteurs génériques et les variables AI4I.
 
 Les mesures actuelles sont synthétiques. Elles servent à vérifier le circuit logiciel ; elles ne remplacent pas des données de capteurs industriels réels ni un modèle physique certifié. Les équipements et opérateurs restent des modèles procéduraux simplifiés : les modèles 3D PBR et les personnages humains riggés sont encore à intégrer.
 
@@ -83,7 +83,7 @@ Voir `docs/PERFORMANCE_BENCHMARK.md` et `docs/HARDWARE_PROFILE.md`.
 
 Le bouton **IMPORTER CSV / ENTRAÎNER L'IA** ouvre un panneau dans l'interface Godot. Il permet de sélectionner un CSV local, d'envoyer un aperçu à l'API, de choisir la colonne cible et de lancer l'entraînement. Les métriques et le nombre de lignes d'entraînement/test sont ensuite affichés dans le panneau.
 
-Le fichier est traité localement par le backend Python ; il n'est pas envoyé à un service cloud. Le modèle entraîné remplace le modèle local utilisé par les prochaines prédictions. Utilisez un dataset documenté pour toute évaluation scientifique.
+Le fichier est traité localement par le backend Python ; il n'est pas envoyé à un service cloud. Le panneau vérifie que les variables explicatives correspondent aux capteurs réellement disponibles dans la simulation. Il prend en charge les trois mesures génériques (`temperature_c`, `vibration_mm_s`, `pressure_bar`) ainsi que les six variables AI4I (`Type`, `Air temperature [K]`, `Process temperature [K]`, `Rotational speed [rpm]`, `Torque [Nm]`, `Tool wear [min]`). Les colonnes non prises en charge sont signalées avant l'entraînement afin d'éviter de créer un modèle inutilisable par le jeu. Le modèle entraîné remplace le modèle local utilisé par les prochaines prédictions.
 
 ## API
 
@@ -94,7 +94,7 @@ Le fichier est traité localement par le backend Python ; il n'est pas envoyé �
 
 ## Données et limites scientifiques
 
-Le script de démonstration génère 500 lignes synthétiques. Il sert uniquement à vérifier l'entraînement et l'intégration. Ses métriques ne constituent pas une preuve de performance industrielle. Pour la compétition, utiliser un dataset industriel documenté, justifier la variable cible, vérifier les unités et les fuites de données, puis conserver les rapports d'entraînement et les preuves de test.
+Le script de démonstration génère 500 lignes synthétiques au format de colonnes AI4I. Il sert uniquement à vérifier l'entraînement et l'intégration ; ce n'est pas le dataset AI4I industriel original et ses métriques ne prouvent pas la qualité du modèle. Ses métriques ne constituent pas une preuve de performance industrielle. Pour la compétition, utiliser un dataset industriel documenté, justifier la variable cible, vérifier les unités et les fuites de données, puis conserver les rapports d'entraînement et les preuves de test.
 
 Aucune intégration DataRobot n'est déclarée comme active. Le moteur utilisable dans ce dépôt est le pipeline local scikit-learn.
 
