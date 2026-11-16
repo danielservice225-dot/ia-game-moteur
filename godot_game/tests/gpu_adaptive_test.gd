@@ -25,6 +25,8 @@ func _run() -> void:
     manager.add_child(first_light)
     manager.add_child(second_light)
     manager.configure([first_light, second_light])
+    if not _expect(FileAccess.file_exists("user://ia_game_hardware_benchmark.csv"), "Le CSV matériel doit être créé automatiquement au démarrage."):
+        return
     if not _expect(first_light.visible and not second_light.visible, "Le profil équilibré doit conserver un éclairage sur deux."):
         return
 
@@ -37,8 +39,23 @@ func _run() -> void:
     if not _expect(first_light.visible and not second_light.visible, "La récupération doit restaurer le profil initial, pas activer toutes les lumières."):
         return
 
+    var test_session_id := str(manager.session_id)
+    manager._write_sample(60.0)
     manager.free()
-    print("PASS: profils GPU et adaptation des éclairages validés.")
+    var telemetry_file := FileAccess.open("user://ia_game_hardware_benchmark.csv", FileAccess.READ)
+    if not _expect(telemetry_file != null, "Le CSV de télémétrie doit pouvoir être relu après fermeture."):
+        return
+    var telemetry_text := telemetry_file.get_as_text()
+    telemetry_file.close()
+    if not _expect(
+        telemetry_text.contains("session_id,record_type")
+        and telemetry_text.contains(test_session_id + ",hardware,")
+        and telemetry_text.contains(test_session_id + ",sample,"),
+        "Le CSV doit contenir les métadonnées et au moins un échantillon horodaté par session."
+    ):
+        return
+
+    print("PASS: profils GPU, adaptation et génération CSV validés.")
     quit(0)
 
 func _expect(condition: bool, message: String) -> bool:
