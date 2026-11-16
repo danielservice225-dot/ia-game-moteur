@@ -1,0 +1,22 @@
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+.env
+.env.*
+!.env.example
+artifacts/*
+!artifacts/.gitkeep
+data/*
+!data/.gitkeep
+*.joblib
+*.pkl
+.DS_Store
+
+# Fichiers générés par Godot
+godot_game/.godot/
+
+# Métadonnées générées par l'installation Python
+*.egg-info/

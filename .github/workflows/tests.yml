@@ -1,0 +1,77 @@
+name: Python tests
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+      - run: ruff check backend ml_engine tests scripts
+      - name: Check DataRobot AI Lab Python syntax
+        run: python -m compileall -q ai_lab
+
+  godot:
+    name: Godot 4 and live ML API integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Python API dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+      - name: Generate and train the local demonstration model
+        run: |
+          python scripts/generate_demo_dataset.py
+          python scripts/demo_train.py
+      - name: Start the local ML API
+        run: |
+          uvicorn backend.main:app --host 127.0.0.1 --port 8000 > /tmp/ia-game-api.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/ia-game-api.log
+          exit 1
+      - name: Install Godot 4.4.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.4.1
+          use-dotnet: false
+      - name: Parse project and GDScript resources
+        run: |
+          set -o pipefail
+          godot --headless --editor --path godot_game --quit 2>&1 | tee /tmp/godot-parse.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|Failed to create an autoload" /tmp/godot-parse.log; then
+            echo "GDScript parse errors detected."
+            exit 1
+          fi
+      - name: Smoke-test supervision game scene
+        run: |
+          set -o pipefail
+          godot --headless --path godot_game --quit-after 5 2>&1 | tee /tmp/godot-supervision.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Attempt to call" /tmp/godot-supervision.log; then
+            echo "Supervision scene runtime errors detected."
+            exit 1
+          fi
+      - name: Run industrial simulation tests
+        run: godot --headless --path godot_game --script res://tests/industrial_simulation_test.gd
+      - name: Run GPU adaptation tests
+        run: godot --headless --path godot_game --script res://tests/gpu_adaptive_test.gd
+      - name: Verify Godot to Python ML prediction over HTTP
+        run: godot --headless --path godot_game --script res://tests/api_integration_test.gd

@@ -1,0 +1,4 @@
+profile,gpu_detection_examples,initial_resolution,msaa_3d,omni_lights,shadows,target_fps,notes
+Économique,"Intel HD 2000/3000/4000; llvmpipe; software renderer",1280x720,2x,disabled,disabled,30,"Profil prudent pour GPU ancien ou rendu logiciel ; les éclairages ponctuels restent désactivés"
+Équilibré,"Intel integrated GPUs; unknown adapters; older or unclassified NVIDIA/AMD",1280x720,2x,alternating,disabled,30,"Profil par défaut ; adaptation par FPS et restauration du profil initial"
+Élevé,"Recent NVIDIA RTX/GTX 16+; AMD Radeon RX 5000+",1280x720,2x,enabled,disabled,60,"Profil initial uniquement pour familles dédiées récentes reconnues ; réduction si les FPS chutent"
