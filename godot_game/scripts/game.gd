@@ -21,7 +21,7 @@ var benchmark_active := false
 var benchmark_elapsed := 0.0
 var benchmark_file: FileAccess
 var adaptive_graphics: Node
-var dashboard: CanvasLayer
+var dashboard: Variant
 
 func _ready() -> void:
     _build_factory()
