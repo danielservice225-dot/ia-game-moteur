@@ -58,7 +58,10 @@ Le dataset synthétique actuel sert seulement à tester le circuit logiciel ; il
 
 - Interface de supervision lisible : état des machines, capteurs, alertes, production et historique.
 - Mode hors ligne après installation des dépendances et du modèle.
-- Mesures de latence, CPU et mémoire.
+- [x] HUD de mesure en jeu : FPS, mémoire statique Godot et durée.
+- [x] Enregistrement CSV horodaté par seconde des mesures et des capteurs sélectionnés (touche F6).
+- [ ] Mesure CPU et RAM totale du processus via les outils système sur le PC cible.
+- [ ] Mesures de latence du diagnostic ML.
 - Scénarios de démonstration reproductibles avec historique des essais.
 - Export d'un rapport et conservation des preuves de test.
 - Validation sur la machine de présentation, pas uniquement dans GitHub Actions.
