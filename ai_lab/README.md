@@ -49,13 +49,13 @@ Ouvrez l'adresse locale indiquée par Streamlit, généralement http://localhost
 3. Entraîner avec DataRobot AutoML.
 4. Comparer les modèles et vérifier la métrique de validation adaptée.
 5. Examiner l'importance des variables et les risques de fuite de données.
-6. Déployer le modèle retenu dans DataRobot.
+6. Créer le déploiement DataRobot du modèle retenu depuis l'application.
 7. Exporter le manifeste avec le Deployment ID.
 8. Intégrer le service de prédiction dans IA GAME après validation du schéma exact des capteurs et des réponses.
 
 ## Limites actuelles
 
 - L'application nécessite un compte DataRobot, un endpoint et un jeton valides.
-- Le déploiement DataRobot n'est pas créé automatiquement.
+- Le bouton « Créer le déploiement DataRobot » permet de demander la création du déploiement du modèle recommandé.
 - Le manifeste n'est pas encore consommé par le jeu.
 - L'intégration de prédiction, la validation du schéma capteurs et les tests de bout en bout restent à réaliser.
