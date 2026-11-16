@@ -17,6 +17,7 @@ var prediction_text := "Approchez-vous d'une machine et appuyez sur E."
 var elapsed := 0.0
 var performance_label: Label
 var performance_accumulator := 0.0
+var hud_accumulator := 0.0
 var benchmark_active := false
 var benchmark_elapsed := 0.0
 var benchmark_file: FileAccess
@@ -373,7 +374,10 @@ func _physics_process(delta: float) -> void:
         machines[i]["state"] = snapshot["state"]
         if previous_running != bool(snapshot["running"]):
             industrial_life.set_machine_running(i, bool(snapshot["running"]))
-    _update_hud()
+    hud_accumulator += delta
+    if hud_accumulator >= 0.2:
+        hud_accumulator = 0.0
+        _update_hud()
 
 func _toggle_selected_machine() -> void:
     if selected_machine < 0:
