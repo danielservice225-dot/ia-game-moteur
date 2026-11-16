@@ -4,6 +4,7 @@ const ApiClient = preload("res://scripts/ia_game_api.gd")
 const IndustrialLife = preload("res://scripts/industrial_life.gd")
 const IndustrialSimulation = preload("res://scripts/industrial_simulation.gd")
 const GpuAdaptiveManager = preload("res://scripts/gpu_adaptive_manager.gd")
+const DatasetImportPanel = preload("res://scripts/dataset_import_panel.gd")
 
 const FLOOR_SIZE := Vector3(30.0, 0.5, 24.0)
 const PLAYER_SPEED := 5.0
@@ -28,6 +29,7 @@ var benchmark_active := false
 var benchmark_elapsed := 0.0
 var benchmark_file: FileAccess
 var adaptive_graphics: Node
+var dataset_import_panel: CanvasLayer
 
 func _ready() -> void:
     _build_factory()
@@ -46,6 +48,8 @@ func _ready() -> void:
     add_child(api)
     api.prediction_received.connect(_on_prediction_received)
     api.request_failed.connect(_on_api_failed)
+    dataset_import_panel = DatasetImportPanel.new()
+    add_child(dataset_import_panel)
     _update_hud()
 
 func _build_factory() -> void:
