@@ -35,7 +35,7 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
       - name: Build Windows executable
-        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name IA-GAME-ML-Studio --collect-all pandas --collect-all numpy --collect-all scipy --collect-all sklearn --collect-all joblib --collect-all uvicorn --collect-all fastapi --collect-all pydantic --collect-all psutil --hidden-import multipart --hidden-import backend.main --hidden-import ml_engine.pipeline ml_studio/app.py
+        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name IA-GAME-ML-Studio --collect-all pandas --collect-all numpy --collect-all scipy --collect-all sklearn --collect-all joblib --collect-all uvicorn --collect-all fastapi --collect-all pydantic --collect-all psutil --hidden-import multipart --hidden-import backend.main --hidden-import ml_engine.pipeline --paths . ml_studio/app.py
       - name: Build installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.6
         with:
