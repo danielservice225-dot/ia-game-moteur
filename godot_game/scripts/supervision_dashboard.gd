@@ -100,6 +100,7 @@ func _build_ui() -> void:
         var button := Button.new()
         button.custom_minimum_size = Vector2(245, 54)
         button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        button.toggle_mode = true
         button.text = "%s  Équipement %d" % [icons[i], i + 1]
         button.alignment = HORIZONTAL_ALIGNMENT_LEFT
         var index := i
