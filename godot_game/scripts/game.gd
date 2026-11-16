@@ -172,7 +172,7 @@ func _build_lighting() -> void:
         _box(self, Vector3(x, 8.55, 0), Vector3(2.4, 0.18, 0.55), housing)
         _box(self, Vector3(x, 8.43, 0), Vector3(2.1, 0.06, 0.32), _material(Color(0.82, 0.9, 1.0), 0.0, 0.25))
 
-func _register_machine(machine_name: String, code: String, position: Vector3, temperature: float, vibration: float, pressure: float) -> void:
+func _register_machine(machine_name: String, code: String, position: Vector3, temperature: float, vibration: float, pressure: float, machine_type: String = "M", tool_wear_min: float = 0.0) -> void:
     machines.append({
         "name": machine_name,
         "code": code,
@@ -180,6 +180,8 @@ func _register_machine(machine_name: String, code: String, position: Vector3, te
         "temperature": temperature,
         "vibration": vibration,
         "pressure": pressure,
+        "machine_type": machine_type,
+        "tool_wear_min": tool_wear_min,
         "running": true
     })
 
@@ -192,10 +194,10 @@ func _build_production_line() -> void:
     _make_motor_pump(Vector3(-7, 0, -3), steel, painted_blue)
     _make_compressor(Vector3(7, 0, -3), steel, safety_yellow)
     _make_conveyor(Vector3(0, 0, 4), steel, rubber, safety_yellow)
-    _register_machine("Presse hydraulique", "P-01", Vector3(0, 0, -4), 74.0, 1.8, 5.0)
-    _register_machine("Pompe centrifuge", "M-02", Vector3(-7, 0, -3), 66.0, 1.6, 5.5)
-    _register_machine("Compresseur industriel", "C-03", Vector3(7, 0, -3), 70.0, 1.9, 6.8)
-    _register_machine("Convoyeur motorisé", "CV-04", Vector3(0, 0, 4), 48.0, 1.2, 5.0)
+    _register_machine("Presse hydraulique", "P-01", Vector3(0, 0, -4), 74.0, 1.8, 5.0, "M", 38.0)
+    _register_machine("Pompe centrifuge", "M-02", Vector3(-7, 0, -3), 66.0, 1.6, 5.5, "L", 52.0)
+    _register_machine("Compresseur industriel", "C-03", Vector3(7, 0, -3), 70.0, 1.9, 6.8, "H", 78.0)
+    _register_machine("Convoyeur motorisé", "CV-04", Vector3(0, 0, 4), 48.0, 1.2, 5.0, "M", 18.0)
     _make_pipe_run(steel, safety_yellow)
 
 func _make_press(origin: Vector3, blue: Material, steel: Material, yellow: Material) -> void:
