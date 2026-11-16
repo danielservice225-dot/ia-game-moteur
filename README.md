@@ -75,7 +75,7 @@ Les mesures actuelles sont synthétiques. Elles servent à vérifier le circuit 
 
 Le projet utilise le renderer Compatibility, une résolution de base de 1280×720 et un profil graphique initial choisi selon le nom du GPU. Les FPS observés peuvent réduire temporairement les éclairages ponctuels ; le retour à la normale restaure le profil initial plutôt que d'activer toutes les lumières.
 
-À chaque lancement, le jeu écrit automatiquement `user://ia_game_hardware_benchmark.csv`. Le fichier contient les informations GPU, moteur de rendu, résolution, FPS et mémoire statique suivie par Godot. Cette valeur n'est pas la RAM totale du processus. Les mesures de performance réelles ne sont disponibles qu'après exécution sur l'ordinateur cible.
+À chaque lancement, le jeu ajoute une session identifiée dans `user://ia_game_hardware_benchmark.csv`, sans écraser les sessions précédentes. Le fichier contient les informations GPU, moteur de rendu, résolution, FPS et mémoire statique suivie par Godot. Cette valeur n'est pas la RAM totale du processus. Les mesures de performance réelles ne sont disponibles qu'après exécution sur l'ordinateur cible.
 
 Voir `docs/PERFORMANCE_BENCHMARK.md` et `docs/HARDWARE_PROFILE.md`.
 
