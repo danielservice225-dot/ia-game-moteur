@@ -505,7 +505,7 @@ func _toggle_benchmark() -> void:
         prediction_text = "Impossible de créer le fichier de mesure dans le dossier utilisateur."
         _update_hud()
         return
-    benchmark_file.store_line("elapsed_s,fps,godot_static_memory_mb,machine_code,machine_state,temperature_c,vibration_mm_s,pressure_bar")
+    benchmark_file.store_line("elapsed_s,fps,godot_static_memory_mb,machine_code,machine_state,temperature_c,vibration_mm_s,pressure_bar,Type,Air temperature [K],Process temperature [K],Rotational speed [rpm],Torque [Nm],Tool wear [min]")
     benchmark_elapsed = 0.0
     benchmark_active = true
     prediction_text = "Mesure démarrée : laissez tourner la scène et testez les équipements."
@@ -522,6 +522,12 @@ func _write_benchmark_sample() -> void:
     var temperature := 0.0
     var vibration := 0.0
     var pressure := 0.0
+    var machine_type := ""
+    var air_temperature_k := 0.0
+    var process_temperature_k := 0.0
+    var rotational_speed_rpm := 0.0
+    var torque_nm := 0.0
+    var tool_wear_min := 0.0
     if selected_machine >= 0 and selected_machine < machines.size():
         var machine: Dictionary = machines[selected_machine]
         code = str(machine.get("code", "none"))
@@ -529,7 +535,14 @@ func _write_benchmark_sample() -> void:
         temperature = float(machine.get("temperature", 0.0))
         vibration = float(machine.get("vibration", 0.0))
         pressure = float(machine.get("pressure", 0.0))
-    benchmark_file.store_line("%.1f,%d,%.2f,%s,%s,%.2f,%.2f,%.2f" % [benchmark_elapsed, fps, memory_mb, code, state, temperature, vibration, pressure])
+        var sensor_payload: Dictionary = simulation.get_sensor_payload(selected_machine)
+        machine_type = str(sensor_payload.get("Type", ""))
+        air_temperature_k = float(sensor_payload.get("Air temperature [K]", 0.0))
+        process_temperature_k = float(sensor_payload.get("Process temperature [K]", 0.0))
+        rotational_speed_rpm = float(sensor_payload.get("Rotational speed [rpm]", 0.0))
+        torque_nm = float(sensor_payload.get("Torque [Nm]", 0.0))
+        tool_wear_min = float(sensor_payload.get("Tool wear [min]", 0.0))
+    benchmark_file.store_line("%.1f,%d,%.2f,%s,%s,%.2f,%.2f,%.2f,%s,%.2f,%.2f,%.1f,%.2f,%.2f" % [benchmark_elapsed, fps, memory_mb, code, state, temperature, vibration, pressure, machine_type, air_temperature_k, process_temperature_k, rotational_speed_rpm, torque_nm, tool_wear_min])
     benchmark_file.flush()
 
 func _exit_tree() -> void:
