@@ -109,3 +109,17 @@ def test_predict_uses_training_feature_schema_and_rejects_missing_sensors(tmp_pa
 
     with pytest.raises(ValueError, match="Variables capteurs absentes"):
         predict_rows(model, [{"temperature": 90}])
+
+
+
+def test_clean_converts_whitespace_to_missing_and_reports_iqr_outliers():
+    frame = pd.DataFrame({
+        "temperature": [20.0, 21.0, 20.5, 22.0, 100.0],
+        "category": ["A", "B", " ", "A", "B"],
+    })
+    cleaned, report = clean_dataframe(frame)
+    assert cleaned["category"].isna().sum() == 1
+    assert report["blank_strings_converted_to_missing"] == 1
+    assert report["numeric_outliers_iqr_detected"]["temperature"] == 1
+    # Statistical outliers are reported, not silently deleted: domain validation is required.
+    assert len(cleaned) == 5
