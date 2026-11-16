@@ -132,6 +132,13 @@ func _toggle_panel() -> void:
 func _open_file_dialog() -> void:
     file_dialog.popup_centered_ratio(0.72)
 
+func _open_history() -> void:
+    OS.shell_open(API_BASE_URL + "/models/history")
+
+func _open_latest_report() -> void:
+    if not last_export_url.is_empty():
+        OS.shell_open(API_BASE_URL + last_export_url)
+
 
 func _on_file_selected(path: String) -> void:
     selected_csv_path = path
@@ -150,6 +157,8 @@ func _on_file_selected(path: String) -> void:
     target_select.disabled = true
     train_button.disabled = true
     preview_data.clear()
+    last_export_url = ""
+    export_button.disabled = true
     _set_status("Vérification du CSV en cours...")
     _send_multipart("/datasets/preview", bytes, "preview")
 
