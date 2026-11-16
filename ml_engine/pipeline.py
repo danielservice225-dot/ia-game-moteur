@@ -40,6 +40,9 @@ def clean_dataframe(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 
     result = frame.copy()
     result.columns = [str(column).strip() for column in result.columns]
+    if result.columns.duplicated().any():
+        duplicates = result.columns[result.columns.duplicated()].astype(str).tolist()
+        raise ValueError(f"Noms de colonnes dupliqués après normalisation : {duplicates}")
     if any(not column for column in result.columns):
         raise ValueError("Le CSV contient un nom de colonne vide.")
     before_rows = len(result)
@@ -63,6 +66,12 @@ def clean_dataframe(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
                 errors="coerce",
             )
             coerced_columns.append(str(column))
+
+    coerced_non_finite = int(
+        result.select_dtypes(include=[np.number]).isin([np.inf, -np.inf]).sum().sum()
+    )
+    non_finite_replaced += coerced_non_finite
+    result = result.replace([np.inf, -np.inf], np.nan)
 
     missing_after_coercion = {str(k): int(v) for k, v in result.isna().sum().items()}
     result = result.drop_duplicates().reset_index(drop=True)
