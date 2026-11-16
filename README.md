@@ -7,7 +7,7 @@ IA GAME est un prototype technique qui relie une simulation 3D Godot à un moteu
 - **Godot 4** : scène 3D industrielle jouable, déplacement clavier et interaction avec une machine.
 - **FastAPI** : API locale pour importer les données, entraîner et servir les prédictions.
 - **Pandas / scikit-learn** : nettoyage CSV, pipeline de prétraitement, Random Forest classification/régression et évaluation sur jeu de test séparé.
-- **GitHub Actions** : tests Python et contrôle Ruff.
+- **GitHub Actions** : tests Python/Ruff et validation headless du projet Godot 4.
 
 ## Démarrer le moteur Python
 
@@ -35,6 +35,24 @@ API : http://127.0.0.1:8000/docs
 5. Approcher la presse industrielle et appuyer sur E pour demander une prédiction au modèle Python.
 
 Le script de démonstration et l'API utilisent le même fichier `artifacts/model.joblib`. Le jeu ne simule pas une prédiction si l'API est indisponible : il affiche une erreur explicite.
+
+## Simulation industrielle Godot
+
+La branche de travail ajoute un premier modèle d'états et de capteurs pour quatre équipements :
+- presse hydraulique (P-01) ;
+- pompe centrifuge (M-02) ;
+- compresseur (C-03) ;
+- convoyeur (CV-04).
+
+Commandes en jeu :
+- **F** : démarrer ou arrêter l'équipement sélectionné ;
+- **E** : envoyer ses trois mesures (température, vibration, pression) au modèle Python ;
+- **G** : injecter une panne de démonstration sur l'équipement sélectionné ;
+- **M** : effectuer la maintenance et réinitialiser ses capteurs.
+
+La simulation fait évoluer les mesures et le compteur de production du convoyeur. Les mesures générées sont synthétiques et servent à valider le flux logiciel ; elles ne remplacent pas des données de capteurs industriels réels ni un modèle physique certifié. La maintenance est une mécanique de démonstration.
+
+Le rendu utilise le renderer Forward+ et des effets d'occlusion ambiante. Les équipements et opérateurs restent actuellement des modèles procéduraux simplifiés. Pour atteindre un rendu photoréaliste, il faudra importer des modèles 3D PBR de qualité, des personnages riggés et des animations licenciés correctement.
 
 ## API
 
