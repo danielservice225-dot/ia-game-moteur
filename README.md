@@ -90,7 +90,10 @@ Le fichier est traité localement par le backend Python ; il n'est pas envoyé �
 - `GET /health` : état du service et présence du modèle.
 - `POST /datasets/preview` : diagnostic et aperçu CSV.
 - `POST /models/train?target=failure` : entraînement sur un CSV envoyé en multipart/form-data.
-- `POST /models/predict` : prédiction avec le modèle enregistré et mesures de latence, CPU et RAM du processus.\n- `GET /models/history` : historique des 100 derniers entraînements.\n- `GET /models/reports/{report_id}` : rapport complet d'un entraînement.\n- `GET /models/reports/{report_id}/export` : téléchargement du rapport JSON.
+- `POST /models/predict` : prédiction avec le modèle enregistré et mesures de latence, CPU et RAM du processus.
+- `GET /models/history` : historique des 100 derniers entraînements.
+- `GET /models/reports/{report_id}` : rapport complet d'un entraînement.
+- `GET /models/reports/{report_id}/export` : téléchargement du rapport JSON.
 
 ## Données et limites scientifiques
 
