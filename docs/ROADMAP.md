@@ -59,7 +59,10 @@ Le dataset synthétique actuel sert seulement à tester le circuit logiciel ; il
 - Interface de supervision lisible : état des machines, capteurs, alertes, production et historique.
 - Mode hors ligne après installation des dépendances et du modèle.
 - [x] HUD de mesure en jeu : FPS, mémoire statique Godot et durée.
-- [x] Enregistrement CSV horodaté par seconde des mesures et des capteurs sélectionnés (touche F6).
+- [x] Création automatique d'un CSV matériel à chaque lancement : GPU, fabricant, moteur de rendu, résolution, FPS et mémoire suivie par Godot.
+- [x] Profils graphiques initiaux et réduction/réactivation des éclairages selon les FPS observés.
+- [x] Catalogue CSV des profils de compatibilité GPU.
+- [ ] Tester les profils sur plusieurs cartes Intel, AMD et NVIDIA ; le catalogue reste heuristique tant que ces essais ne sont pas réalisés.
 - [ ] Mesure CPU et RAM totale du processus via les outils système sur le PC cible.
 - [ ] Mesures de latence du diagnostic ML.
 - Scénarios de démonstration reproductibles avec historique des essais.
