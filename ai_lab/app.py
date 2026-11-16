@@ -100,10 +100,19 @@ excluded_columns = st.multiselect(
     default=available_exclusions,
 )
 training_frame = frame.drop(columns=excluded_columns)
-if target not in training_frame.columns or len(training_frame.columns) < 2:
+valid_training_frame = target in training_frame.columns and len(training_frame.columns) >= 2
+if not valid_training_frame:
     st.error("Après exclusion, il faut conserver la cible et au moins une variable explicative.")
 
-if st.button("Créer le projet et lancer DataRobot AutoML", type="primary", use_container_width=True):
+automl_mode_label = st.selectbox("Mode DataRobot AutoML", ["Quick", "Comprehensive"])
+automl_mode = dr.AUTOPILOT_MODE.QUICK if automl_mode_label == "Quick" else dr.AUTOPILOT_MODE.COMPREHENSIVE
+
+if st.button(
+    "Créer le projet et lancer DataRobot AutoML",
+    type="primary",
+    use_container_width=True,
+    disabled=not valid_training_frame,
+):
     try:
         with st.spinner("Création du Use Case et du dataset dans DataRobot..."):
             if use_case_id.strip():
@@ -134,10 +143,10 @@ if st.button("Créer le projet et lancer DataRobot AutoML", type="primary", use_
                 use_case=use_case,
             )
 
-        with st.spinner("Démarrage de DataRobot AutoML en mode Quick..."):
+        with st.spinner(f"Démarrage de DataRobot AutoML en mode {automl_mode_label}..."):
             project.analyze_and_model(
                 target=target,
-                mode=dr.AUTOPILOT_MODE.QUICK,
+                mode=automl_mode,
                 worker_count=-1,
             )
             project.wait_for_autopilot()
@@ -200,15 +209,32 @@ if result:
         language="text",
     )
 
+    deployment_name = st.text_input(
+        "Nom du déploiement",
+        value=f"IA GAME - {result['target']} - v1",
+    )
+    if st.button("Créer le déploiement DataRobot", type="primary"):
+        try:
+            with st.spinner("Création du déploiement DataRobot..."):
+                deployment = dr.Deployment.create_from_learning_model(
+                    model_id=result["model_id"],
+                    label=deployment_name,
+                    description="Déploiement IA GAME pour diagnostic de maintenance prédictive.",
+                )
+            st.session_state["deployment_id"] = str(deployment.id)
+            st.success(f"Déploiement créé dans DataRobot : {deployment.id}")
+        except Exception as exc:
+            st.error(f"Création du déploiement impossible : {exc}")
+
     deployment_id = st.text_input(
         "Deployment ID DataRobot",
-        value="",
-        help="Déployez d'abord le modèle sélectionné dans DataRobot, puis indiquez son identifiant de déploiement.",
+        value=st.session_state.get("deployment_id", ""),
+        help="L'identifiant est renseigné automatiquement après création. Vous pouvez aussi saisir un déploiement existant.",
     )
     manifest = {
         "contract_version": "1.0",
         "provider": "DataRobot",
-        "status": "deployment_required" if not deployment_id.strip() else "deployment_id_supplied_not_verified",
+        "status": "deployment_required" if not deployment_id.strip() else "deployment_id_created_or_supplied_not_prediction_verified",
         **result,
         "deployment_id": deployment_id.strip() or None,
         "prediction_path": (
