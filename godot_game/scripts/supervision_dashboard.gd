@@ -108,8 +108,25 @@ func _add_panel(parent: Control, rect: Rect2, title: String = "") -> VBoxContain
 
 func _place_panel(column: VBoxContainer, preset: int, panel_position: Vector2) -> void:
     var panel := column.get_parent() as PanelContainer
-    panel.set_anchors_preset(preset)
-    panel.position = panel_position
+    var panel_size := panel.size
+    if preset == Control.PRESET_TOP_RIGHT:
+        panel.anchor_left = 1.0
+        panel.anchor_right = 1.0
+        panel.anchor_top = 0.0
+        panel.anchor_bottom = 0.0
+        panel.offset_left = panel_position.x
+        panel.offset_top = panel_position.y
+        panel.offset_right = panel_position.x + panel_size.x
+        panel.offset_bottom = panel_position.y + panel_size.y
+    elif preset == Control.PRESET_BOTTOM_LEFT:
+        panel.anchor_left = 0.0
+        panel.anchor_right = 0.0
+        panel.anchor_top = 1.0
+        panel.anchor_bottom = 1.0
+        panel.offset_left = panel_position.x
+        panel.offset_top = panel_position.y
+        panel.offset_right = panel_position.x + panel_size.x
+        panel.offset_bottom = panel_position.y + panel_size.y
 
 func _build_ui() -> void:
     var root := Control.new()
@@ -127,21 +144,23 @@ func _build_ui() -> void:
     top.add_theme_stylebox_override("panel", _panel_style(Color(0.015, 0.045, 0.09, 0.97), Color(0.08, 0.36, 0.72, 0.95), 14))
     root.add_child(top)
     var top_row := HBoxContainer.new()
-    top_row.add_theme_constant_override("separation", 20)
+    top_row.add_theme_constant_override("separation", 10)
     top.add_child(top_row)
     var brand := VBoxContainer.new()
-    brand.custom_minimum_size.x = 250
-    brand.add_child(_label("✿  IA GAME", 24, WHITE, true))
-    brand.add_child(_label("Simulation 3D industrielle", 12, CYAN))
+    brand.custom_minimum_size.x = 185
+    brand.add_child(_label("✿  IA GAME", 22, WHITE, true))
+    brand.add_child(_label("Simulation 3D industrielle", 11, CYAN))
     top_row.add_child(brand)
-    top_row.add_child(_label("▣  Usine en service", 17, GREEN, true))
-    top_row.add_child(_label("▦  Jour : 1", 16, WHITE, true))
-    top_row.add_child(_label("◷  " + Time.get_time_string_from_system(), 16, WHITE, true))
+    top_row.add_child(_label("▣  Usine en service", 14, GREEN, true))
+    top_row.add_child(_label("▦  Jour : 1", 13, WHITE, true))
+    top_row.add_child(_label("◷  " + Time.get_time_string_from_system(), 13, WHITE, true))
     var spacer := Control.new()
     spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     top_row.add_child(spacer)
-    performance_label = _label("▮  PERFORMANCE : mesure…", 16, GREEN, true)
-    performance_label.custom_minimum_size.x = 300
+    performance_label = _label("▮  FPS : mesure… | RAM : —", 13, GREEN, true)
+    performance_label.custom_minimum_size.x = 245
+    performance_label.size_flags_horizontal = Control.SIZE_SHRINK_END
+    performance_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
     top_row.add_child(performance_label)
 
     # Menu vertical fixe à gauche.
