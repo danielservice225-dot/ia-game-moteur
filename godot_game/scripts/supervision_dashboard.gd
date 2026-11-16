@@ -17,6 +17,8 @@ var toggle_button: Button
 var diagnose_button: Button
 var maintenance_button: Button
 var fault_button: Button
+var toggle_button: Button
+var maintenance_button: Button
 var machine_status_label: Label
 var alert_title: Label
 var alert_body: Label
@@ -153,9 +155,8 @@ func _build_ui() -> void:
     var machine_panel := _add_panel(root, Rect2(0, 0, 270, 158), "État des machines")
     machine_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
     machine_panel.position = Vector2(-286, 91)
-    machine_panel.add_child(_label("●  En ligne : —", 15, GREEN))
-    machine_panel.add_child(_label("▲  En alerte : —", 15, AMBER))
-    machine_status_label = _label("✖  En panne : —", 15, RED)
+    machine_status_label = _label("●  En ligne : —   ▲  En alerte : —   ✖  En panne : —", 13, WHITE)
+    machine_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     machine_panel.add_child(machine_status_label)
     var health := ProgressBar.new()
     health.custom_minimum_size.y = 13
@@ -185,6 +186,18 @@ func _build_ui() -> void:
     fault_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     fault_button.pressed.connect(func(): fault_requested.emit())
     alert_actions.add_child(fault_button)
+    var action_row := HBoxContainer.new()
+    alert.add_child(action_row)
+    toggle_button = Button.new()
+    toggle_button.text = "Marche / arrêt"
+    toggle_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    toggle_button.pressed.connect(func(): toggle_requested.emit())
+    action_row.add_child(toggle_button)
+    maintenance_button = Button.new()
+    maintenance_button.text = "Maintenance"
+    maintenance_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    maintenance_button.pressed.connect(func(): maintenance_requested.emit())
+    action_row.add_child(maintenance_button)
 
     # Console système en bas à gauche.
     var console := _add_panel(root, Rect2(12, 0, 410, 150), "Console système")
@@ -298,6 +311,8 @@ func refresh(machine_data: Array[Dictionary], active_index: int, ai_message: Str
     var valid := active_index >= 0 and active_index < definitions.size()
     diagnose_button.disabled = not valid
     fault_button.disabled = not valid
+    toggle_button.disabled = not valid
+    maintenance_button.disabled = not valid
 
 
 class FactoryMap extends Control:
