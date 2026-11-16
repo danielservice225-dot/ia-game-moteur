@@ -22,7 +22,7 @@ jobs:
         run: python -m compileall -q ai_lab
 
   godot:
-    name: Godot 4 and live ML API integration
+    name: Godot 4, graphical interface and live ML API integration
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +48,10 @@ jobs:
           done
           cat /tmp/ia-game-api.log
           exit 1
+      - name: Install Godot and virtual display dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgl1-mesa-dri libglx-mesa0 mesa-utils
       - name: Install Godot 4.4.1
         uses: chickensoft-games/setup-godot@v2
         with:
@@ -69,6 +73,22 @@ jobs:
             echo "Supervision scene runtime errors detected."
             exit 1
           fi
+      - name: Render the actual game interface and capture screenshot
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          xvfb-run -a -s "-screen 0 1600x900x24" godot --path godot_game --script res://tests/visual_capture.gd 2>&1 | tee /tmp/godot-visual.log
+          test -s artifacts/ia-game-interface.png
+          file artifacts/ia-game-interface.png
+      - name: Upload graphical interface evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ia-game-interface-screenshot
+          path: artifacts/ia-game-interface.png
+          if-no-files-found: error
+          retention-days: 14
       - name: Run industrial simulation tests
         run: godot --headless --path godot_game --script res://tests/industrial_simulation_test.gd
       - name: Run GPU adaptation tests
