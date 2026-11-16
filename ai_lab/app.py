@@ -76,6 +76,10 @@ m1, m2, m3 = st.columns(3)
 m1.metric("Lignes", f"{len(frame):,}".replace(",", " "))
 m2.metric("Colonnes", len(frame.columns))
 m3.metric("Valeurs manquantes", int(frame.isna().sum().sum()))
+st.caption(
+    f"Doublons exacts : {int(frame.duplicated().sum())} · "
+    f"Colonnes constantes : {sum(frame[column].nunique(dropna=False) <= 1 for column in frame.columns)}"
+)
 st.dataframe(frame.head(20), use_container_width=True)
 
 target = st.selectbox("Variable cible à prédire", options=list(frame.columns), index=(
@@ -83,9 +87,21 @@ target = st.selectbox("Variable cible à prédire", options=list(frame.columns),
 ))
 st.caption(
     "Pour AI4I 2020, « Machine failure » est une cible possible. "
-    "Les colonnes de sous-types de panne (TWF, HDF, PWF, OSF, RNF) doivent être examinées "
-    "pour éviter toute fuite de cible si elles sont utilisées comme variables explicatives."
+    "Les colonnes de sous-types de panne (TWF, HDF, PWF, OSF, RNF) peuvent révéler directement "
+    "la cible et doivent être exclues du jeu de caractéristiques pour une évaluation honnête."
 )
+leakage_candidates = ["UDI", "Product ID"]
+if target == "Machine failure":
+    leakage_candidates += ["TWF", "HDF", "PWF", "OSF", "RNF"]
+available_exclusions = [column for column in leakage_candidates if column in frame.columns and column != target]
+excluded_columns = st.multiselect(
+    "Colonnes à exclure de l'entraînement (identifiants ou risque de fuite)",
+    options=[column for column in frame.columns if column != target],
+    default=available_exclusions,
+)
+training_frame = frame.drop(columns=excluded_columns)
+if target not in training_frame.columns or len(training_frame.columns) < 2:
+    st.error("Après exclusion, il faut conserver la cible et au moins une variable explicative.")
 
 if st.button("Créer le projet et lancer DataRobot AutoML", type="primary", use_container_width=True):
     try:
@@ -100,7 +116,7 @@ if st.button("Créer le projet et lancer DataRobot AutoML", type="primary", use_
 
             suffix = Path(uploaded.name).name
             with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as temp_file:
-                temp_file.write(uploaded.getvalue())
+                temp_file.write(training_frame.to_csv(index=False).encode("utf-8"))
                 temp_path = temp_file.name
 
             try:
@@ -130,6 +146,16 @@ if st.button("Créer le projet et lancer DataRobot AutoML", type="primary", use_
         metric_name = project.metric
         metrics = recommendation.metrics
         validation_score = metrics.get(metric_name, {}).get("validation")
+        comparison = []
+        for candidate in dr.Model.list(project.id):
+            candidate_metrics = candidate.metrics.get(metric_name, {})
+            comparison.append({
+                "model_id": str(candidate.id),
+                "model_type": str(candidate.model_type),
+                "validation_score": candidate_metrics.get("validation"),
+                "cross_validation_score": candidate_metrics.get("crossValidation"),
+                "recommended": str(candidate.id) == str(recommendation.id),
+            })
         st.session_state["training_result"] = {
             "use_case_id": str(use_case.id),
             "dataset_id": str(dataset.id),
@@ -140,7 +166,9 @@ if st.button("Créer le projet et lancer DataRobot AutoML", type="primary", use_
             "metric": str(metric_name),
             "validation_score": validation_score,
             "metrics": metrics,
-            "features": [str(column) for column in frame.columns if column != target],
+            "features": [str(column) for column in training_frame.columns if column != target],
+            "excluded_columns": [str(column) for column in excluded_columns],
+            "model_comparison": comparison,
             "source_filename": uploaded.name,
             "trained_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -159,6 +187,10 @@ if result:
         "Score validation",
         "Non fourni" if result["validation_score"] is None else f"{result['validation_score']:.5f}",
     )
+    if result.get("model_comparison"):
+        st.markdown("**Comparaison des modèles DataRobot**")
+        st.dataframe(pd.DataFrame(result["model_comparison"]), use_container_width=True)
+    st.caption("Colonnes exclues : " + (", ".join(result.get("excluded_columns", [])) or "aucune"))
     st.code(
         f"Use Case : {result['use_case_id']}\n"
         f"Dataset : {result['dataset_id']}\n"
